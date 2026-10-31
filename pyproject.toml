@@ -27,6 +27,13 @@ sim = [
     "pillow>=13.0",
     "transforms3d>=0.4,<0.5",
 ]
+agent = [
+    # mcp 2.x renamed FastMCP and breaks mcpadapt (smolagents' MCP bridge), which itself
+    # only requires mcp>=1.10 with no upper bound: this pin is what keeps us on 1.x.
+    # The [ws] extra provides websockets, which mcpadapt imports unconditionally.
+    "mcp[ws]>=1.20,<2",
+    "smolagents[mcp,litellm]>=1.26",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
