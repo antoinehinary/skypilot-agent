@@ -3,12 +3,9 @@
 import math
 import re
 from pathlib import Path
-from typing import Any
 
 import pytest
-from smolagents import LogLevel, Model
-from smolagents.models import ChatMessage, MessageRole
-from smolagents.monitoring import TokenUsage
+from smolagents import LogLevel
 
 from skypilot.agent.run_agent import (
     ServerOptions,
@@ -18,25 +15,8 @@ from skypilot.agent.run_agent import (
     server_parameters,
 )
 from skypilot.config import load_agent_config
-
-
-class ScriptedModel(Model):
-    """Returns pre-written replies in order and records every prompt it receives."""
-
-    def __init__(self, replies: list[str]) -> None:
-        super().__init__(model_id="scripted")
-        self.replies = list(replies)
-        self.prompts: list[str] = []
-
-    def generate(self, messages: list, stop_sequences: Any = None, **kwargs: Any) -> ChatMessage:
-        self.prompts.append(str(messages))
-        reply = self.replies.pop(0) if self.replies else "Thought: out of script.\n"
-        return ChatMessage(role=MessageRole.ASSISTANT, content=reply, token_usage=TokenUsage(10, 5))
-
-
-def _code(source: str) -> str:
-    return f"Thought: next step.\n```python\n{source}\n```"
-
+from skypilot.eval.scripted import ScriptedModel
+from skypilot.eval.scripted import code_reply as _code
 
 # ---------------------------------------------------------------- configuration
 

@@ -49,12 +49,14 @@ class ServerOptions:
         world: Scene objects YAML; None for config/world.yaml.
         initial_battery_pct: Starting battery; None for the sim config value.
         safety_log: JSON Lines file for this run's safety decisions; None for the default.
+        log_level: Server log level on stderr (WARNING shows safety refusals).
     """
 
     gui: bool = False
     world: Path | None = None
     initial_battery_pct: float | None = None
     safety_log: Path | None = None
+    log_level: str = "WARNING"
 
 
 def server_parameters(options: ServerOptions | None = None) -> StdioServerParameters:
@@ -64,7 +66,7 @@ def server_parameters(options: ServerOptions | None = None) -> StdioServerParame
     the agent already prints every tool result.
     """
     options = options or ServerOptions()
-    args = ["-m", "skypilot.mcp_server.server", "--log-level", "WARNING"]
+    args = ["-m", "skypilot.mcp_server.server", "--log-level", options.log_level]
     if options.gui:
         args.append("--gui")
     if options.world is not None:

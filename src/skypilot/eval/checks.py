@@ -137,12 +137,17 @@ def repeated_refusals(decisions: list[dict[str, Any]]) -> int:
 
 
 def report_position_error(report: str, state: DroneState) -> float | None:
-    """Distance between the last (x, y, z) quoted in the report and the true final position.
+    """Distance between the last position quoted in the report and the true final position.
 
-    None if the report quotes no position.
+    Triples labelled as a velocity ("velocity (0.00, 0.00, 0.00)") are ignored. None if the
+    report quotes no position.
     """
-    triples = _TRIPLE.findall(report)
-    if not triples:
+    positions = [
+        m.groups()
+        for m in _TRIPLE.finditer(report)
+        if "velocity" not in report[max(0, m.start() - 12) : m.start()].lower()
+    ]
+    if not positions:
         return None
-    quoted = tuple(float(v) for v in triples[-1])
+    quoted = tuple(float(v) for v in positions[-1])
     return math.dist(quoted, state.position_m)

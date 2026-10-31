@@ -113,3 +113,10 @@ def test_report_position_error() -> None:
     assert report_position_error("Hovered at (0.00, 0.00, 3.00) m.", truth) == pytest.approx(2.0)
     assert report_position_error("Done at (0.01, 0.0, 1.0).", truth) == pytest.approx(0.01)
     assert report_position_error("Mission complete.", truth) is None
+
+
+def test_report_position_error_ignores_velocity() -> None:
+    truth = _state((2.0, 1.0, 0.01), flying=False)
+    report = "landed at (2.00, 1.00, 0.01) m, velocity (0.00, 0.00, 0.00) m/s, battery 97.0 %"
+
+    assert report_position_error(report, truth) == pytest.approx(0.0, abs=1e-6)
