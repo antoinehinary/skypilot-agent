@@ -9,7 +9,7 @@ import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
 from skypilot.drone.backend import DroneState, MoveResult
-from skypilot.mcp_server.server import build_server, format_result
+from skypilot.mcp_server.server import build_server, format_result, format_state, parse_state
 from skypilot.vision import describe
 from skypilot.vision.geometry import world_to_pixel
 
@@ -179,3 +179,24 @@ def test_stdio_round_trip_with_the_real_simulator() -> None:
 
     assert takeoff.startswith("OK: took off to (0.00, 0.00, 1.00)")
     assert land.startswith("OK: landed at")
+
+
+def test_parse_state_inverts_format_state() -> None:
+    state = DroneState((1.234, -0.5, 0.013), (0.1, 0.0, -0.25), 0.0, 87.65, True, 12.34)
+
+    parsed = parse_state("Final: " + format_state(state) + ".")
+
+    assert parsed.position_m == (1.23, -0.5, 0.01)
+    assert parsed.velocity_mps == (0.1, 0.0, -0.25)
+    assert (parsed.battery_pct, parsed.is_flying, parsed.sim_time_s) == (87.7, True, 12.3)
+
+
+def test_parse_state_reads_landed_status() -> None:
+    landed = DroneState((2.0, 2.0, 0.013), (0.0, 0.0, 0.0), 0.0, 97.0, False, 9.0)
+
+    assert parse_state(format_state(landed)).is_flying is False
+
+
+def test_parse_state_rejects_other_text() -> None:
+    with pytest.raises(ValueError, match="no drone state"):
+        parse_state("Mission complete.")

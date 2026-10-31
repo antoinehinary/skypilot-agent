@@ -2,6 +2,7 @@
 
 import math
 import re
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -10,6 +11,7 @@ from smolagents.models import ChatMessage, MessageRole
 from smolagents.monitoring import TokenUsage
 
 from skypilot.agent.run_agent import (
+    ServerOptions,
     build_model,
     count_action_steps,
     run_mission,
@@ -57,9 +59,18 @@ def test_ollama_options_only_sent_to_ollama_models() -> None:
     assert cloud.api_base is None
 
 
-def test_server_parameters_forward_gui_flag() -> None:
-    assert "--gui" in server_parameters(gui=True).args
-    assert "--gui" not in server_parameters(gui=False).args
+def test_server_parameters_forward_options() -> None:
+    options = ServerOptions(
+        gui=True, world=Path("w.yaml"), initial_battery_pct=25.0, safety_log=Path("s.jsonl")
+    )
+
+    args = server_parameters(options).args
+
+    assert "--gui" in args
+    assert args[args.index("--world") + 1] == "w.yaml"
+    assert args[args.index("--initial-battery") + 1] == "25.0"
+    assert args[args.index("--safety-log") + 1] == "s.jsonl"
+    assert "--gui" not in server_parameters().args
 
 
 # ------------------------------------------------------- end to end, scripted

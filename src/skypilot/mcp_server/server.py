@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 from pathlib import Path
 from typing import Annotated
 
@@ -19,7 +20,14 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from skypilot.config import CONFIG_DIR, VisionConfig, load_safety_config, load_vision_config
+from skypilot.config import (
+    CONFIG_DIR,
+    VisionConfig,
+    load_safety_config,
+    load_sim_config,
+    load_vision_config,
+    load_world_config,
+)
 from skypilot.drone.backend import DroneBackend, DroneState, MoveResult
 from skypilot.mcp_server.vision_tools import register_vision_tools
 from skypilot.safety.guard import SafeDrone
@@ -50,6 +58,35 @@ def format_state(state: DroneState) -> str:
     return (
         f"{status} at {_xyz(state.position_m)} m, velocity {_xyz(state.velocity_mps)} m/s, "
         f"battery {state.battery_pct:.1f} %, sim time {state.sim_time_s:.1f} s"
+    )
+
+
+_NUM = r"(-?\d+(?:\.\d+)?)"
+_VEC = rf"\({_NUM}, {_NUM}, {_NUM}\)"
+_STATE_RE = re.compile(
+    rf"(flying|landed) at {_VEC} m, velocity {_VEC} m/s, "
+    rf"battery {_NUM} %, sim time {_NUM} s"
+)
+
+
+def parse_state(text: str) -> DroneState:
+    """Inverse of `format_state` (values rounded as printed). Yaw is not reported: 0.0.
+
+    Raises:
+        ValueError: if `text` does not contain a state in the `format_state` format.
+    """
+    match = _STATE_RE.search(text)
+    if match is None:
+        raise ValueError(f"no drone state found in {text!r}")
+    status, *numbers = match.groups()
+    v = [float(n) for n in numbers]
+    return DroneState(
+        position_m=(v[0], v[1], v[2]),
+        velocity_mps=(v[3], v[4], v[5]),
+        yaw_rad=0.0,
+        battery_pct=v[6],
+        is_flying=status == "flying",
+        sim_time_s=v[7],
     )
 
 
@@ -139,14 +176,24 @@ def main(argv: list[str] | None = None) -> None:
         default=DEFAULT_SAFETY_LOG,
         help="JSON Lines file where every safety decision is appended",
     )
+    parser.add_argument(
+        "--world", type=Path, help="scene objects YAML (default: config/world.yaml)"
+    )
+    parser.add_argument("--initial-battery", type=float, help="starting battery, percent")
     args = parser.parse_args(argv)
     # NOTE: stdout carries the MCP protocol; logging goes to stderr.
     logging.basicConfig(level=args.log_level, format="%(asctime)s %(name)s %(message)s")
 
     from skypilot.drone.sim_backend import SimBackend  # heavy import, only for the real server
 
+    sim_config = load_sim_config()
+    if args.initial_battery is not None:
+        battery = sim_config.battery.model_copy(update={"initial_pct": args.initial_battery})
+        sim_config = sim_config.model_copy(update={"battery": battery})
+    world = load_world_config(args.world) if args.world else None
+
     # The simulator is only ever reachable through the safety guard: there is no bypass flag.
-    with SimBackend(gui=args.gui) as sim:
+    with SimBackend(sim_config, gui=args.gui, world=world) as sim:
         drone = SafeDrone(
             sim,
             load_safety_config(),

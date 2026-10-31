@@ -6,6 +6,7 @@ api_base: http://localhost:11434
 request_timeout_s: 120      # per LLM call
 temperature: 0.0            # deterministic decoding for reproducible missions
 max_steps: 12               # agent reasoning/action steps before giving up
+planning_interval: null     # N: smolagents writes an explicit plan every N steps (null: never)
 
 # Only sent when model_id targets Ollama.
 ollama:

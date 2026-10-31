@@ -15,6 +15,7 @@ import logging
 import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 from mcp import StdioServerParameters
@@ -39,15 +40,39 @@ def build_model(config: AgentConfig) -> LiteLLMModel:
     return LiteLLMModel(model_id=config.model_id, api_base=api_base, **kwargs)
 
 
-def server_parameters(gui: bool = False) -> StdioServerParameters:
+@dataclass(frozen=True)
+class ServerOptions:
+    """How to start the drone MCP server for one mission.
+
+    Attributes:
+        gui: Show the PyBullet GUI.
+        world: Scene objects YAML; None for config/world.yaml.
+        initial_battery_pct: Starting battery; None for the sim config value.
+        safety_log: JSON Lines file for this run's safety decisions; None for the default.
+    """
+
+    gui: bool = False
+    world: Path | None = None
+    initial_battery_pct: float | None = None
+    safety_log: Path | None = None
+
+
+def server_parameters(options: ServerOptions | None = None) -> StdioServerParameters:
     """Command that starts the drone MCP server with the current interpreter.
 
     The server shares this terminal's stderr; its logs are limited to warnings because
     the agent already prints every tool result.
     """
+    options = options or ServerOptions()
     args = ["-m", "skypilot.mcp_server.server", "--log-level", "WARNING"]
-    if gui:
+    if options.gui:
         args.append("--gui")
+    if options.world is not None:
+        args += ["--world", str(options.world)]
+    if options.initial_battery_pct is not None:
+        args += ["--initial-battery", str(options.initial_battery_pct)]
+    if options.safety_log is not None:
+        args += ["--safety-log", str(options.safety_log)]
     return StdioServerParameters(command=sys.executable, args=args)
 
 
@@ -78,16 +103,21 @@ def run_mission(
     mission: str,
     model: Model,
     max_steps: int,
-    gui: bool = False,
+    server: ServerOptions | None = None,
     verbosity: LogLevel = LogLevel.INFO,
+    planning_interval: int | None = None,
 ) -> MissionResult:
-    """Start the MCP server, run the agent on `mission`, then read the drone's final state."""
-    with MCPClient(server_parameters(gui), structured_output=False) as tools:
+    """Start the MCP server, run the agent on `mission`, then read the drone's final state.
+
+    `planning_interval` makes smolagents write an explicit plan every N steps (None: never).
+    """
+    with MCPClient(server_parameters(server), structured_output=False) as tools:
         agent = CodeAgent(
             tools=[PositionalArgsTool(t) for t in tools],
             model=model,
             instructions=INSTRUCTIONS,
             max_steps=max_steps,
+            planning_interval=planning_interval,
             code_block_tags="markdown",
             verbosity_level=verbosity,
         )
@@ -117,8 +147,9 @@ def main(argv: list[str] | None = None) -> int:
         args.mission,
         build_model(config),
         max_steps=args.max_steps or config.max_steps,
-        gui=args.gui,
+        server=ServerOptions(gui=args.gui),
         verbosity=LogLevel.OFF if args.quiet else LogLevel.INFO,
+        planning_interval=config.planning_interval,
     )
     run = mission.run
     tokens = run.token_usage.total_tokens if run.token_usage else "n/a"
