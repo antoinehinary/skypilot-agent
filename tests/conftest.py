@@ -59,6 +59,7 @@ class FakeBackend(DroneBackend):
             battery_pct=100.0,
             is_flying=self.is_flying,
             sim_time_s=self.sim_time_s,
+            setpoint_m=self.position if self.is_flying else None,
         )
 
     def get_camera_image(self) -> CameraFrame:

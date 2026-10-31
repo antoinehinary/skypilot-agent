@@ -4,7 +4,7 @@ import dataclasses
 
 import pytest
 
-from skypilot.drone.backend import DroneBackend
+from skypilot.drone.backend import DroneBackend, DroneState
 
 
 def test_backend_is_abstract() -> None:
@@ -43,3 +43,15 @@ def test_context_manager_closes_backend(fake_drone) -> None:
         drone.takeoff(1.0)
 
     assert fake_drone.closed
+
+
+def test_move_relative_starts_from_the_setpoint_not_the_measured_position(fake_drone) -> None:
+    fake_drone.takeoff(1.0)
+    fake_drone.position = (0.004, 0.007, 1.013)  # measured drift; setpoint stays (0, 0, 1)
+    fake_drone.get_state = lambda: DroneState(
+        (0.004, 0.007, 1.013), (0.0, 0.0, 0.0), 0.0, 100.0, True, 2.0, setpoint_m=(0.0, 0.0, 1.0)
+    )
+
+    result = fake_drone.move_relative(0.0, 0.0, 2.0)
+
+    assert result.position_m == pytest.approx((0.0, 0.0, 3.0))

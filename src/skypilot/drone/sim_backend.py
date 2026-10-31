@@ -173,6 +173,7 @@ class SimBackend(DroneBackend):
             battery_pct=self._battery_pct,
             is_flying=self._flying,
             sim_time_s=self._sim_time(),
+            setpoint_m=tuple(float(v) for v in self._setpoint) if self._flying else None,
         )
 
     def get_camera_image(self) -> CameraFrame:

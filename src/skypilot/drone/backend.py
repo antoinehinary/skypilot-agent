@@ -30,6 +30,8 @@ class DroneState:
         battery_pct: Remaining battery, 0-100 %.
         is_flying: True between a successful takeoff and a completed landing.
         sim_time_s: Time since the backend started, seconds (wall time on hardware).
+        setpoint_m: Position the drone is commanded to hold while flying (the last move's
+            target), or None. Unlike `position_m` it carries no hover drift.
     """
 
     position_m: Vec3
@@ -38,6 +40,7 @@ class DroneState:
     battery_pct: float
     is_flying: bool
     sim_time_s: float
+    setpoint_m: Vec3 | None = None
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -102,10 +105,15 @@ class DroneBackend(ABC):
     def move_relative(
         self, dx_m: float, dy_m: float, dz_m: float, speed_mps: float | None = None
     ) -> MoveResult:
-        """Fly by (dx_m, dy_m, dz_m) metres from the current position, world-frame axes."""
-        # NOTE: offsets apply to the *measured* position, so hover drift (~1 cm) carries into
-        # the target: from z=1.013, dz=2.0 targets z=3.013, just above a 3.0 m limit.
-        x, y, z = self.get_state().position_m
+        """Fly by (dx_m, dy_m, dz_m) metres from the commanded position, world-frame axes.
+
+        Offsets apply to the setpoint when the backend reports one, as in a flight stack:
+        hovering at a commanded 1.00 m, dz=2.0 targets exactly 3.00 m. Applying them to the
+        measured position instead would add the ~1 cm hover drift (z=3.01 m, just over a
+        3.00 m limit). Falls back to the measured position otherwise.
+        """
+        state = self.get_state()
+        x, y, z = state.setpoint_m or state.position_m
         return self.goto(x + dx_m, y + dy_m, z + dz_m, speed_mps=speed_mps)
 
     @abstractmethod

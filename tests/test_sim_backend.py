@@ -225,3 +225,19 @@ def test_camera_image_matches_its_calibration() -> None:
     assert red.sum() > 50
     assert cols.mean() == pytest.approx(expected_u, abs=1.5)
     assert rows.mean() == pytest.approx(expected_v, abs=1.5)
+
+
+def test_relative_climb_to_the_limit_is_allowed() -> None:
+    """Regression: dz=2.0 from a commanded 1.0 m targeted the drifting 1.013 m + 2.0 = 3.013 m,
+    just over the 3.0 m limit, and was refused; relative moves now start from the setpoint."""
+    from skypilot.safety.guard import SafeDrone
+
+    with SimBackend() as sim:
+        drone = SafeDrone(sim, default_speed_mps=sim.config.motion.default_speed_mps)
+        drone.takeoff(1.0)
+        assert drone.get_state().setpoint_m == pytest.approx((0.0, 0.0, 1.0), abs=1e-3)
+
+        result = drone.move_relative(0.0, 0.0, 2.0)
+
+    assert result.success and not result.refused, result.message
+    assert result.position_m[2] == pytest.approx(3.0, abs=TOL_M)
