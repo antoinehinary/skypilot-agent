@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-unit-tests:
+    name: Lint and unit tests (no simulator, no LLM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: pip install -e ".[agent,dev]"
+      - name: Ruff
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Unit tests
+        run: pytest -m "not sim" -rs
+
+  simulator-tests:
+    name: Simulator tests (headless PyBullet, scripted LLM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GYM_PYBULLET_DRONES_COMMIT: 15c426c
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip  # also keeps the pybullet wheel built from source (no cp312 wheel on PyPI)
+      - name: Fetch gym-pybullet-drones
+        run: |
+          git clone https://github.com/learnsyslab/gym-pybullet-drones.git external/gym-pybullet-drones
+          git -C external/gym-pybullet-drones checkout "$GYM_PYBULLET_DRONES_COMMIT"
+      - name: Install
+        run: |
+          pip install -e ".[sim,agent,dev]"
+          pip install -e external/gym-pybullet-drones --no-deps
+      - name: Simulator tests
+        run: pytest -m sim -rs
