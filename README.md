@@ -1,5 +1,7 @@
 # SkyPilot Agent
 
+[![CI](https://github.com/antoinehinary/skypilot-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/antoinehinary/skypilot-agent/actions/workflows/ci.yml)
+
 An AI agent that flies a simulated Crazyflie from plain-language missions.
 You type *"take off, find the red box, hover above it and land"*; the agent plans the mission,
 calls drone tools over MCP, uses the onboard camera, and every command passes a safety layer
@@ -7,15 +9,16 @@ that can refuse it with a reason.
 
 ![Scripted square flight: overview with flight trail (left) and chase camera (right)](media/square.gif)
 
-**Status:** early development. A local LLM agent flies plain-language missions through MCP tools
-and finds objects with the onboard camera; the safety layer is next.
+**Status:** early development. A local LLM agent flies plain-language missions through MCP tools,
+finds objects with the onboard camera, and every command is checked by a safety layer; an
+evaluation harness is next.
 
 ## Roadmap
 
 - [x] Drone backend: blocking takeoff / goto / hover / land on gym-pybullet-drones, scripted square flight
 - [x] MCP server exposing the drone as tools + smolagents agent with a local LLM (Ollama)
 - [x] Vision: coloured-object detection and ground-plane localisation, scene description with a vision model
-- [ ] Safety layer: geofence, altitude / speed / battery limits, structured refusals, CI
+- [x] Safety layer: geofence, altitude / speed / battery limits, structured refusals, CI
 - [ ] Evaluation harness: mission suite, success metrics, model comparison table
 - [ ] Demo GIFs, architecture diagram, v1.0
 
@@ -100,6 +103,33 @@ in HSV space (a saturation floor separates the boxes from the pale checkered flo
 blob's centroid, and intersects the pixel's viewing ray with the ground plane. Because the box
 tops sit above that plane, the estimate is off by ~0.1 m when seen from 1 m to the side and by
 <1 cm from directly above, so the tool tells the agent to fly above the object and look again.
+
+## Safety layer
+
+The MCP server never talks to the simulator directly: it talks to `SafeDrone`, a `DroneBackend`
+that wraps the real one (simulator today, hardware tomorrow) and checks every command against
+[`config/safety.yaml`](config/safety.yaml) before passing it on. There is no bypass flag.
+
+| Rule | Default |
+| --- | --- |
+| Geofence | x, y in [-3, 3] m |
+| Flight altitude | z in [0.2, 3.0] m |
+| Speed | at most 1.0 m/s |
+| Battery | 30 % to take off; below 20 %, only landing |
+| Mission time | 300 s of sim time; after that, only landing |
+| Landing | always allowed |
+
+The rules are pure functions of (state, request, limits), so every limit and boundary is unit
+tested without a simulator. A refused command never reaches the drone; the agent receives a
+reason and the nearest allowed command, which a small model can copy instead of redoing the
+arithmetic:
+
+```
+REFUSED: target z=50.01 m exceeds the 3.00 m altitude limit; choose z between 0.20 and 3.00 m;
+nearest allowed: goto(x_m=0.00, y_m=0.01, z_m=3.00). Now flying at (0.00, 0.01, 1.01) m, ...
+```
+
+Every decision, accepted or refused, is appended with a timestamp to `runs/safety_log.jsonl`.
 
 ## Scripted flight
 
