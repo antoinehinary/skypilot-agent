@@ -1,5 +1,7 @@
 """Agent tests without an LLM: a scripted model drives the real agent, MCP server and simulator."""
 
+import math
+import re
 from typing import Any
 
 import pytest
@@ -112,3 +114,38 @@ def test_agent_stops_at_step_budget() -> None:
     assert result.state == "max_steps_error"
     # 2 code steps + 1 forced final-answer call made by smolagents when the budget runs out.
     assert count_action_steps(result) == 3
+
+
+FLY_TO_RED = """
+import re
+found = find_objects(colour="red")
+print(found)
+x, y = map(float, re.search(r"at \\(([-\\d.]+), ([-\\d.]+)\\)", found).groups())
+print(goto(x_m=x, y_m=y, z_m={z}))
+"""
+
+
+@pytest.mark.sim
+@pytest.mark.usefixtures("_needs_sim")
+def test_scripted_search_finds_and_hovers_above_the_red_box() -> None:
+    from skypilot.config import load_world_config
+
+    red = next(o for o in load_world_config().objects if o.colour == "red")
+    model = ScriptedModel(
+        [
+            _code("print(takeoff(altitude_m=2.5))"),
+            _code(FLY_TO_RED.format(z=2.5)),  # coarse estimate from 1.8 m away
+            _code(FLY_TO_RED.format(z=1.0)),  # refined from directly above, then descend
+            _code("print(hover(seconds=2.0))"),
+            _code("final_answer(get_state())"),
+        ]
+    )
+
+    result = run_mission("find the red box", model, max_steps=8, verbosity=LogLevel.OFF)
+
+    assert result.state == "success", result.output
+    x, y, z = map(
+        float, re.search(r"at \(([-\d.]+), ([-\d.]+), ([-\d.]+)\)", result.output).groups()
+    )
+    assert math.dist((x, y), red.position_m) < 0.05
+    assert z == pytest.approx(1.0, abs=0.1)

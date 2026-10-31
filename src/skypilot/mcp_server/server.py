@@ -12,22 +12,27 @@ from __future__ import annotations
 
 import argparse
 import logging
+from pathlib import Path
 from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
+from skypilot.config import CONFIG_DIR, VisionConfig, load_vision_config
 from skypilot.drone.backend import DroneBackend, DroneState, MoveResult
+from skypilot.mcp_server.vision_tools import register_vision_tools
 
 logger = logging.getLogger(__name__)
 
 SERVER_NAME = "skypilot-drone"
+DEFAULT_IMAGE_DIR = CONFIG_DIR.parent / "runs" / "images"
 INSTRUCTIONS = """\
-Controls one quadrotor drone. World frame: x forward, y left, z up, origin at the take-off pad
-on the ground. All distances in metres, durations in seconds. Every movement tool blocks until
-the move has finished and reports OK or FAILED with the final position. Take off before moving,
-and land at the end of a mission."""
+Controls one quadrotor drone with a downward-facing camera. World frame: x forward, y left, z up,
+origin at the take-off pad on the ground. All distances in metres, durations in seconds. Every
+movement tool blocks until the move has finished and reports OK or FAILED with the final position.
+Camera tools locate coloured objects on the ground. Take off before moving, and land at the end
+of a mission."""
 
 Metres = Annotated[float, Field(description="metres, world frame")]
 
@@ -51,9 +56,18 @@ def format_result(result: MoveResult, state: DroneState) -> str:
     return f"{status}: {result.message}. Now {format_state(state)}."
 
 
-def build_server(drone: DroneBackend) -> FastMCP:
-    """Create the MCP server with one tool per drone action, bound to `drone`."""
+def build_server(
+    drone: DroneBackend,
+    vision: VisionConfig | None = None,
+    image_dir: Path = DEFAULT_IMAGE_DIR,
+) -> FastMCP:
+    """Create the MCP server with one tool per drone action, bound to `drone`.
+
+    `vision` (default: config/vision.yaml) configures the camera tools; captured images
+    are saved under `image_dir`.
+    """
     mcp = FastMCP(SERVER_NAME, instructions=INSTRUCTIONS)
+    register_vision_tools(mcp, drone, vision or load_vision_config(), image_dir)
 
     def report(result: MoveResult) -> str:
         text = format_result(result, drone.get_state())

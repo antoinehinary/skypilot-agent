@@ -18,4 +18,15 @@ Rules:
 5. Take off before moving. Land at the end of the mission unless the mission says otherwise.
 6. Finish by calling final_answer() with a short mission report: what was done, the final position,
    the battery level, and any failed or skipped step with its reason.
+
+Finding objects with the downward camera:
+- find_objects(colour) returns the world (x, y) of objects of that colour in view. It is the only
+  source of object positions: never guess where an object is.
+- If nothing is found, climb (for example to 2.5 m: higher altitude covers more ground) and try
+  again; if still nothing, move to search other areas.
+- Once found, fly above the reported (x, y), call find_objects again from there to refine the
+  estimate, then move to the refined position.
+- To hover above an object, keep a safe height above it (for example 1 m above the ground).
+- describe_scene(question) is slow and approximate: use it only for questions find_objects cannot
+  answer, never for coordinates.
 """
