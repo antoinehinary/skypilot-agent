@@ -50,7 +50,11 @@ def server_parameters(gui: bool = False) -> StdioServerParameters:
 
 
 def count_action_steps(result: RunResult) -> int:
-    """Number of agent action steps (excludes the task and planning entries)."""
+    """Number of agent action steps, i.e. LLM calls that produced an action.
+
+    Excludes the task and planning entries. When the step budget runs out, smolagents
+    makes one extra LLM call to write a final answer; it is counted too.
+    """
     return sum(1 for step in result.steps if "step_number" in step)
 
 
