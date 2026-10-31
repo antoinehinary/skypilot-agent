@@ -7,14 +7,14 @@ that can refuse it with a reason.
 
 ![Scripted square flight: overview with flight trail (left) and chase camera (right)](media/square.gif)
 
-**Status:** early development. A local LLM agent flies plain-language missions through MCP tools;
-vision and the safety layer are next.
+**Status:** early development. A local LLM agent flies plain-language missions through MCP tools
+and finds objects with the onboard camera; the safety layer is next.
 
 ## Roadmap
 
 - [x] Drone backend: blocking takeoff / goto / hover / land on gym-pybullet-drones, scripted square flight
 - [x] MCP server exposing the drone as tools + smolagents agent with a local LLM (Ollama)
-- [ ] Vision: coloured-object detection and ground-plane localisation, scene description with a vision model
+- [x] Vision: coloured-object detection and ground-plane localisation, scene description with a vision model
 - [ ] Safety layer: geofence, altitude / speed / battery limits, structured refusals, CI
 - [ ] Evaluation harness: mission suite, success metrics, model comparison table
 - [ ] Demo GIFs, architecture diagram, v1.0
@@ -47,7 +47,8 @@ git -C external/gym-pybullet-drones checkout 15c426c
 CFLAGS="-Dfdopen=fdopen" pip install -e ".[sim,agent,dev]" && pip install -e external/gym-pybullet-drones --no-deps
 ```
 
-For the agent, install [Ollama](https://ollama.com), then `ollama pull qwen3:8b` and keep Ollama running.
+For the agent, install [Ollama](https://ollama.com), then `ollama pull qwen3:8b` (agent) and
+`ollama pull qwen2.5vl:7b` (scene description), and keep Ollama running.
 
 The `CFLAGS` flag is needed to build `pybullet` from source on macOS. The simulator is installed with
 `--no-deps` to skip its reinforcement-learning dependencies (torch, stable-baselines3), which this
@@ -57,6 +58,7 @@ project does not use; pip will warn about them, which is expected.
 
 ```bash
 python -m skypilot.agent.run_agent "take off to 1 m, fly to (2, 2, 1), land" --gui
+python -m skypilot.agent.run_agent "find the red box and hover above it" --gui
 ```
 
 The agent ([smolagents](https://github.com/huggingface/smolagents) `CodeAgent`, `qwen3:8b` in Ollama by
@@ -69,16 +71,35 @@ touches the simulator directly.
 | --- | --- |
 | Model, context size, timeouts, step budget | [`config/agent.yaml`](config/agent.yaml) |
 | Other model (any [LiteLLM](https://docs.litellm.ai/docs/providers) id) | `--model <id>` or `MODEL_ID` in the environment / `.env` (see `.env.example`) |
+| Objects in the scene (colour, position, size) | [`config/world.yaml`](config/world.yaml) |
+| Camera, colour thresholds, vision model | [`config/sim.yaml`](config/sim.yaml), [`config/vision.yaml`](config/vision.yaml) |
 
 ### Drone tools over MCP
 
-`takeoff(altitude_m)`, `goto(x_m, y_m, z_m)`, `move_relative(dx_m, dy_m, dz_m)`, `hover(seconds)`,
-`land()`, `get_state()`. The server works with any MCP client; to explore it in the
+| Tool | Result |
+| --- | --- |
+| `takeoff(altitude_m)`, `goto(x_m, y_m, z_m)`, `move_relative(dx_m, dy_m, dz_m)`, `hover(seconds)`, `land()` | `OK`/`FAILED`, what happened, the new position and battery |
+| `get_state()` | position, velocity, battery, flying or landed |
+| `find_objects(colour)` | world (x, y) and size of each object of that colour in the camera view, or the area covered and search advice |
+| `get_camera_image()` | path of a saved PNG and the ground area it covers |
+| `describe_scene(question)` | answer from a vision-language model (qualitative questions only) |
+
+The server works with any MCP client; to explore it in the
 [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
 
 ```bash
 npx @modelcontextprotocol/inspector ./.venv/bin/python -m skypilot.mcp_server.server --gui
 ```
+
+### How objects are located
+
+The drone carries a downward-facing camera on a yaw-only gimbal (simulated, 320x240, 60° FOV).
+Each frame comes with its pinhole intrinsics `K` and camera-to-world pose, the same data a
+calibrated real camera and a state estimator would provide. `find_objects` thresholds the image
+in HSV space (a saturation floor separates the boxes from the pale checkered floor), takes each
+blob's centroid, and intersects the pixel's viewing ray with the ground plane. Because the box
+tops sit above that plane, the estimate is off by ~0.1 m when seen from 1 m to the side and by
+<1 cm from directly above, so the tool tells the agent to fly above the object and look again.
 
 ## Scripted flight
 
@@ -95,7 +116,7 @@ until the drone is within 0.1 m of its target or a timeout expires. Parameters l
 ## Tests
 
 ```bash
-python -m pytest               # everything, simulator headless, LLM replaced by a scripted model (~5 s)
+python -m pytest               # everything, simulator headless, LLMs replaced by scripted models (~15 s)
 python -m pytest -m "not sim"  # pure-Python tests only, no PyBullet needed
 python -m ruff check . && python -m ruff format --check .
 ```

@@ -73,6 +73,8 @@ def find_objects(frame: CameraFrame, colour: str, config: VisionConfig) -> list[
     Raises:
         KeyError: if `colour` has no thresholds in the config.
     """
+    # TODO: flag blobs that touch the image border: the object is only partly in view, so its
+    # centroid and size are biased (seen as "0.17 m wide" for a 0.3 m box at the frame edge).
     blobs = find_blobs(frame.image, config.colours[colour], config.min_area_px)
     camera_height_m = float(frame.cam_to_world[2, 3])
     focal_px = float(frame.intrinsics[0, 0])
