@@ -105,6 +105,24 @@ class WorldConfig(_Model):
         return self
 
 
+class HsvRange(_Model):
+    low: tuple[int, int, int]
+    high: tuple[int, int, int]
+
+
+class DescribeConfig(_Model):
+    model_id: str
+    api_base: str
+    request_timeout_s: PositiveFloat
+    max_tokens: PositiveInt
+
+
+class VisionConfig(_Model):
+    colours: dict[str, list[HsvRange]]
+    min_area_px: PositiveInt
+    describe: DescribeConfig
+
+
 def _load_yaml(path: Path) -> dict:
     with path.open() as f:
         return yaml.safe_load(f)
@@ -118,6 +136,11 @@ def load_sim_config(path: Path | None = None) -> SimConfig:
 def load_world_config(path: Path | None = None) -> WorldConfig:
     """Load the scene objects (default: `config/world.yaml`)."""
     return WorldConfig.model_validate(_load_yaml(path or CONFIG_DIR / "world.yaml"))
+
+
+def load_vision_config(path: Path | None = None) -> VisionConfig:
+    """Load colour thresholds and the scene-description model (default: `config/vision.yaml`)."""
+    return VisionConfig.model_validate(_load_yaml(path or CONFIG_DIR / "vision.yaml"))
 
 
 def load_agent_config(path: Path | None = None) -> AgentConfig:

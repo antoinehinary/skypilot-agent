@@ -1,0 +1,23 @@
+# Colour detection and scene description.
+
+# HSV thresholds in OpenCV units: hue 0-179, saturation and value 0-255. Measured on rendered
+# frames: box faces have saturation >= 200 while the checkered floor is <= 70 (white ~0, blue ~64),
+# so a saturation floor of 120 separates objects from the floor. Red wraps around hue 0.
+colours:
+  red:
+    - {low: [0, 120, 60], high: [10, 255, 255]}
+    - {low: [170, 120, 60], high: [179, 255, 255]}
+  yellow:
+    - {low: [20, 120, 60], high: [35, 255, 255]}
+  green:
+    - {low: [45, 120, 60], high: [85, 255, 255]}
+  blue:
+    - {low: [100, 120, 60], high: [130, 255, 255]}
+
+min_area_px: 30            # smaller blobs are treated as noise
+
+describe:
+  model_id: ollama_chat/qwen2.5vl:7b
+  api_base: http://localhost:11434
+  request_timeout_s: 120
+  max_tokens: 200
