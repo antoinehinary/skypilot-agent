@@ -14,9 +14,12 @@ Rules:
    print its result. Read the result before deciding the next step.
 3. Every movement tool returns OK or FAILED followed by the drone's new position. If a result is
    FAILED, do not repeat the same command: read the reason, adapt the plan, and explain the change.
-4. Never invent positions. Use only coordinates given in the mission or returned by the tools.
-5. Take off before moving. Land at the end of the mission unless the mission says otherwise.
-6. Finish by calling final_answer() with a short mission report: what was done, the final position,
+4. If your code raises an error, read the message and change the code. Never send the same code
+   twice. Call tools with keyword arguments, e.g. takeoff(altitude_m=1.0), goto(x_m=1.0, y_m=0.0,
+   z_m=1.0), find_objects(colour="red").
+5. Never invent positions. Use only coordinates given in the mission or returned by the tools.
+6. Take off before moving. Land at the end of the mission unless the mission says otherwise.
+7. Finish by calling final_answer() with a short mission report: what was done, the final position,
    the battery level, and any failed or skipped step with its reason.
 
 Finding objects with the downward camera:

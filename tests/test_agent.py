@@ -149,3 +149,15 @@ def test_scripted_search_finds_and_hovers_above_the_red_box() -> None:
     )
     assert math.dist((x, y), red.position_m) < 0.05
     assert z == pytest.approx(1.0, abs=0.1)
+
+
+@pytest.mark.sim
+@pytest.mark.usefixtures("_needs_sim")
+def test_positional_tool_calls_work_through_mcp() -> None:
+    model = ScriptedModel([_code("print(takeoff(1.0))"), _code("final_answer(get_state())")])
+
+    result = run_mission("take off", model, max_steps=4, verbosity=LogLevel.OFF)
+
+    match = re.search(r"flying at \(([-\d.]+), ([-\d.]+), ([-\d.]+)\)", result.output)
+    assert match, result.output
+    assert float(match.group(3)) == pytest.approx(1.0, abs=0.1)

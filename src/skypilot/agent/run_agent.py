@@ -21,6 +21,7 @@ from smolagents import CodeAgent, LiteLLMModel, LogLevel, MCPClient, Model
 from smolagents.agents import RunResult
 
 from skypilot.agent.prompts import INSTRUCTIONS
+from skypilot.agent.tools import PositionalArgsTool
 from skypilot.config import AgentConfig, load_agent_config
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ def run_mission(
     """Start the MCP server, run the agent on `mission`, and return the full run result."""
     with MCPClient(server_parameters(gui), structured_output=False) as tools:
         agent = CodeAgent(
-            tools=tools,
+            tools=[PositionalArgsTool(t) for t in tools],
             model=model,
             instructions=INSTRUCTIONS,
             max_steps=max_steps,
