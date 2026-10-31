@@ -1,5 +1,8 @@
 """Unit tests of the pure safety rules."""
 
+import re
+
+import numpy as np
 import pytest
 import yaml
 from pydantic import ValidationError
@@ -52,7 +55,8 @@ def test_takeoff_to_50_m_is_refused_with_actionable_reason() -> None:
 
     assert not decision.allowed and decision.rule == "altitude"
     assert decision.reason == (
-        "target z=50.00 m exceeds the 3.00 m altitude limit; choose z between 0.20 and 3.00 m"
+        "target z=50.00 m exceeds the 3.00 m altitude limit; choose z between 0.20 and 3.00 m; "
+        "nearest allowed: takeoff(altitude_m=3.00)"
     )
 
 
@@ -161,3 +165,21 @@ def test_refusal_just_over_a_limit_shows_why() -> None:
     decision = validate_goto(state(position=(0.0, 0.0, 1.0127)), (0.0, 0.0, 3.0127), 0.5, LIMITS)
 
     assert "target z=3.01 m exceeds the 3.00 m altitude limit" in decision.reason
+
+
+def test_position_refusal_suggests_an_executable_call() -> None:
+    decision = validate_goto(
+        state(position=(0.0, 0.0068, 1.0127)), (0.0, 0.0068, 3.0127), 0.5, LIMITS
+    )
+
+    assert decision.reason.endswith("nearest allowed: goto(x_m=0.00, y_m=0.01, z_m=3.00)")
+
+
+def test_every_suggested_target_is_itself_allowed() -> None:
+    rng = np.random.default_rng(0)
+    for target in rng.uniform([-10, -10, -2], [10, 10, 60], size=(500, 3)):
+        decision = validate_goto(state(), tuple(target), 0.5, LIMITS)
+        if decision.allowed:
+            continue
+        suggested = re.search(r"goto\(x_m=(.+), y_m=(.+), z_m=(.+)\)$", decision.reason).groups()
+        assert validate_goto(state(), tuple(map(float, suggested)), 0.5, LIMITS) == ALLOW

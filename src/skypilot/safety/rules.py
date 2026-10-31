@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-from skypilot.config import SafetyConfig
+from skypilot.config import Interval, SafetyConfig
 from skypilot.drone.backend import DroneState, Vec3
 
 
@@ -109,30 +109,63 @@ def check_speed(speed_mps: float | None, limits: SafetyConfig) -> Decision | Non
     return None
 
 
-def check_position(target_m: Vec3, limits: SafetyConfig) -> Decision | None:
+def suggest_goto(target_m: Vec3) -> str:
+    return "goto(x_m={:.2f}, y_m={:.2f}, z_m={:.2f})".format(*target_m)
+
+
+def suggest_takeoff(target_m: Vec3) -> str:
+    return f"takeoff(altitude_m={target_m[2]:.2f})"
+
+
+def nearest_allowed(target_m: Vec3, limits: SafetyConfig) -> Vec3:
+    """Clamp `target_m` into the geofence and altitude band, rounded to centimetres."""
+
+    def clamp(value: float, interval: Interval) -> float:
+        return min(max(round(value, 2), interval.low), interval.high)
+
+    x, y, z = target_m
+    return (
+        clamp(x, limits.geofence.x_m),
+        clamp(y, limits.geofence.y_m),
+        clamp(z, limits.altitude_m),
+    )
+
+
+def check_position(
+    target_m: Vec3, limits: SafetyConfig, suggest: Callable[[Vec3], str] = suggest_goto
+) -> Decision | None:
     """Target inside the geofence and the altitude band.
 
     The geofence is a box, hence convex: if the start and the target of a straight move are
     inside it, so is the whole path. Checking the target is enough because the current
     position is inside by induction (takeoff starts on the pad and every move was checked).
+
+    A refusal ends with the nearest allowed target as a ready-to-use call (`suggest`): small
+    models copy a concrete call far more reliably than they redo the arithmetic.
     """
+    problem = _position_problem(target_m, limits)
+    if problem is None:
+        return None
+    rule, reason = problem
+    return _refuse(rule, f"{reason}; nearest allowed: {suggest(nearest_allowed(target_m, limits))}")
+
+
+def _position_problem(target_m: Vec3, limits: SafetyConfig) -> tuple[str, str] | None:
+    """(rule, reason) for the first violated position limit, or None."""
     x, y, z = target_m
     alt = limits.altitude_m
+    band = f"choose z between {alt.low:.2f} and {alt.high:.2f} m"
     if z > alt.high:
-        return _refuse(
-            "altitude",
-            f"target z={z:.2f} m exceeds the {alt.high:.2f} m altitude limit; "
-            f"choose z between {alt.low:.2f} and {alt.high:.2f} m",
-        )
+        return "altitude", f"target z={z:.2f} m exceeds the {alt.high:.2f} m altitude limit; {band}"
     if z < alt.low:
-        return _refuse(
+        return (
             "altitude",
             f"target z={z:.2f} m is below the {alt.low:.2f} m minimum flight altitude; "
-            f"choose z between {alt.low:.2f} and {alt.high:.2f} m, or call land to touch down",
+            f"{band}, or call land to touch down",
         )
     for axis, value, interval in (("x", x, limits.geofence.x_m), ("y", y, limits.geofence.y_m)):
         if value not in interval:
-            return _refuse(
+            return (
                 "geofence",
                 f"target {axis}={value:.2f} m is outside the geofence "
                 f"({axis} from {interval.low:.2f} to {interval.high:.2f} m); "
@@ -150,7 +183,7 @@ def validate_takeoff(state: DroneState, altitude_m: float, limits: SafetyConfig)
         [
             lambda: check_mission_time(state, limits),
             lambda: check_takeoff_battery(state, limits),
-            lambda: check_position((x, y, altitude_m), limits),
+            lambda: check_position((x, y, altitude_m), limits, suggest=suggest_takeoff),
         ]
     )
 

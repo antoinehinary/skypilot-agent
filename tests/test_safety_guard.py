@@ -85,5 +85,6 @@ def test_mcp_tool_reports_refusal(safe: SafeDrone) -> None:
 
     assert text.startswith(
         "REFUSED: target z=50.00 m exceeds the 3.00 m altitude limit; "
-        "choose z between 0.20 and 3.00 m. Now flying at (0.00, 0.00, 1.00) m"
+        "choose z between 0.20 and 3.00 m; nearest allowed: goto(x_m=0.00, y_m=0.00, z_m=3.00). "
+        "Now flying at (0.00, 0.00, 1.00) m"
     )
