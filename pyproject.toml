@@ -14,6 +14,7 @@ dependencies = [
     "pydantic>=2.7",    # typed, validated config loaded from YAML
     "pyyaml>=6.0",      # config/*.yaml
     "imageio>=2.34",    # GIF export from camera frames
+    "opencv-python-headless>=4.10",  # colour detection; headless build: no GUI deps, CI-friendly
 ]
 
 [project.optional-dependencies]
