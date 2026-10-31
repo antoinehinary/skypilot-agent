@@ -52,7 +52,7 @@ def test_takeoff_to_50_m_is_refused_with_actionable_reason() -> None:
 
     assert not decision.allowed and decision.rule == "altitude"
     assert decision.reason == (
-        "target z=50.0 m exceeds the 3.0 m altitude limit; choose z between 0.2 and 3.0 m"
+        "target z=50.00 m exceeds the 3.00 m altitude limit; choose z between 0.20 and 3.00 m"
     )
 
 
@@ -79,10 +79,14 @@ def test_goto_allowed_inside_limits(target) -> None:
 @pytest.mark.parametrize(
     ("target", "rule", "fragment"),
     [
-        ((0.0, 0.0, 50.0), "altitude", "z=50.0 m exceeds the 3.0 m altitude limit"),
-        ((0.0, 0.0, 0.1), "altitude", "below the 0.2 m minimum flight altitude"),
-        ((3.1, 0.0, 1.0), "geofence", "x=3.1 m is outside the geofence (x from -3.0 to 3.0 m)"),
-        ((0.0, -6.0, 1.0), "geofence", "y=-6.0 m is outside the geofence (y from -3.0 to 3.0 m)"),
+        ((0.0, 0.0, 50.0), "altitude", "z=50.00 m exceeds the 3.00 m altitude limit"),
+        ((0.0, 0.0, 0.1), "altitude", "below the 0.20 m minimum flight altitude"),
+        ((3.1, 0.0, 1.0), "geofence", "x=3.10 m is outside the geofence (x from -3.00 to 3.00 m)"),
+        (
+            (0.0, -6.0, 1.0),
+            "geofence",
+            "y=-6.00 m is outside the geofence (y from -3.00 to 3.00 m)",
+        ),
     ],
 )
 def test_goto_outside_limits_is_refused(target, rule, fragment) -> None:
@@ -105,7 +109,7 @@ def test_goto_speed_limit(speed, allowed: bool) -> None:
 
     assert decision.allowed is allowed
     if not allowed:
-        assert decision.rule == "speed" and "use at most 1.0 m/s" in decision.reason
+        assert decision.rule == "speed" and "use at most 1.00 m/s" in decision.reason
 
 
 @pytest.mark.parametrize(("battery", "allowed"), [(19.9, False), (20.0, True)])
@@ -150,3 +154,10 @@ def test_land_is_never_refused() -> None:
     worst = state(position=(9.0, 9.0, 9.0), battery=0.0, sim_time=10_000.0)
 
     assert validate_land(worst, LIMITS) == ALLOW
+
+
+def test_refusal_just_over_a_limit_shows_why() -> None:
+    # Regression: a climb to z=3.0127 (measured drift) was refused as "z=3.0 m exceeds 3.0 m".
+    decision = validate_goto(state(position=(0.0, 0.0, 1.0127)), (0.0, 0.0, 3.0127), 0.5, LIMITS)
+
+    assert "target z=3.01 m exceeds the 3.00 m altitude limit" in decision.reason

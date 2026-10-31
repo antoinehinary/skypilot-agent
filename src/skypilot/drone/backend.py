@@ -103,6 +103,8 @@ class DroneBackend(ABC):
         self, dx_m: float, dy_m: float, dz_m: float, speed_mps: float | None = None
     ) -> MoveResult:
         """Fly by (dx_m, dy_m, dz_m) metres from the current position, world-frame axes."""
+        # NOTE: offsets apply to the *measured* position, so hover drift (~1 cm) carries into
+        # the target: from z=1.013, dz=2.0 targets z=3.013, just above a 3.0 m limit.
         x, y, z = self.get_state().position_m
         return self.goto(x + dx_m, y + dy_m, z + dz_m, speed_mps=speed_mps)
 

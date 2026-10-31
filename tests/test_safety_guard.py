@@ -31,7 +31,7 @@ def test_refused_command_never_reaches_the_drone(safe: SafeDrone, fake_drone) ->
     result = safe.goto(0.0, 0.0, 50.0)
 
     assert result.refused and not result.success
-    assert result.message.startswith("target z=50.0 m exceeds the 3.0 m altitude limit")
+    assert result.message.startswith("target z=50.00 m exceeds the 3.00 m altitude limit")
     assert result.position_m == before[0]
     assert (fake_drone.position, fake_drone.sim_time_s) == before
 
@@ -41,7 +41,7 @@ def test_move_relative_is_checked_as_a_goto(safe: SafeDrone, fake_drone) -> None
 
     result = safe.move_relative(0.0, 5.0, 0.0)
 
-    assert result.refused and "y=5.0 m is outside the geofence" in result.message
+    assert result.refused and "y=5.00 m is outside the geofence" in result.message
     assert fake_drone.position == (0.0, 0.0, 1.0)
 
 
@@ -84,6 +84,6 @@ def test_mcp_tool_reports_refusal(safe: SafeDrone) -> None:
     text = call("goto", x_m=0.0, y_m=0.0, z_m=50.0)
 
     assert text.startswith(
-        "REFUSED: target z=50.0 m exceeds the 3.0 m altitude limit; "
-        "choose z between 0.2 and 3.0 m. Now flying at (0.00, 0.00, 1.00) m"
+        "REFUSED: target z=50.00 m exceeds the 3.00 m altitude limit; "
+        "choose z between 0.20 and 3.00 m. Now flying at (0.00, 0.00, 1.00) m"
     )

@@ -103,8 +103,8 @@ def check_speed(speed_mps: float | None, limits: SafetyConfig) -> Decision | Non
     if speed_mps is not None and speed_mps > limit:
         return _refuse(
             "speed",
-            f"speed {speed_mps:.1f} m/s exceeds the {limit:.1f} m/s speed limit; "
-            f"use at most {limit:.1f} m/s",
+            f"speed {speed_mps:.2f} m/s exceeds the {limit:.2f} m/s speed limit; "
+            f"use at most {limit:.2f} m/s",
         )
     return None
 
@@ -121,21 +121,21 @@ def check_position(target_m: Vec3, limits: SafetyConfig) -> Decision | None:
     if z > alt.high:
         return _refuse(
             "altitude",
-            f"target z={z:.1f} m exceeds the {alt.high:.1f} m altitude limit; "
-            f"choose z between {alt.low:.1f} and {alt.high:.1f} m",
+            f"target z={z:.2f} m exceeds the {alt.high:.2f} m altitude limit; "
+            f"choose z between {alt.low:.2f} and {alt.high:.2f} m",
         )
     if z < alt.low:
         return _refuse(
             "altitude",
-            f"target z={z:.1f} m is below the {alt.low:.1f} m minimum flight altitude; "
-            f"choose z between {alt.low:.1f} and {alt.high:.1f} m, or call land to touch down",
+            f"target z={z:.2f} m is below the {alt.low:.2f} m minimum flight altitude; "
+            f"choose z between {alt.low:.2f} and {alt.high:.2f} m, or call land to touch down",
         )
     for axis, value, interval in (("x", x, limits.geofence.x_m), ("y", y, limits.geofence.y_m)):
         if value not in interval:
             return _refuse(
                 "geofence",
-                f"target {axis}={value:.1f} m is outside the geofence "
-                f"({axis} from {interval.low:.1f} to {interval.high:.1f} m); "
+                f"target {axis}={value:.2f} m is outside the geofence "
+                f"({axis} from {interval.low:.2f} to {interval.high:.2f} m); "
                 f"choose {axis} within that range",
             )
     return None

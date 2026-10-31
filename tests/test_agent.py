@@ -177,6 +177,6 @@ def test_safety_refusal_reaches_the_model_and_the_drone_stays_put() -> None:
 
     result = run_mission("fly to 50 m", model, max_steps=5, verbosity=LogLevel.OFF)
 
-    assert "REFUSED: target z=50.0 m exceeds the 3.0 m altitude limit" in model.prompts[2]
+    assert "REFUSED: target z=50.00 m exceeds the 3.00 m altitude limit" in model.prompts[2]
     z = float(re.search(r"at \([-\d.]+, [-\d.]+, ([-\d.]+)\)", result.output).group(1))
     assert z == pytest.approx(1.0, abs=0.1)
