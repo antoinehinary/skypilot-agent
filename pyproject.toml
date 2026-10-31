@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skypilot"
+version = "0.1.0"
+description = "An AI agent that flies a simulated Crazyflie from plain-language missions, through MCP tools and a safety layer."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy>=2.5",       # state vectors, setpoint trajectories
+    "pydantic>=2.7",    # typed, validated config loaded from YAML
+    "pyyaml>=6.0",      # config/*.yaml
+    "imageio>=2.34",    # GIF export from camera frames
+]
+
+[project.optional-dependencies]
+# Runtime deps of gym-pybullet-drones (installed itself from external/ with --no-deps,
+# which skips its RL-only deps torch and stable-baselines3). pybullet needs
+# CFLAGS="-Dfdopen=fdopen" on macOS: see README.
+sim = [
+    "pybullet>=3.2.7",
+    "scipy>=1.18",
+    "gymnasium>=1.3",
+    "pillow>=13.0",
+    "transforms3d>=0.4,<0.5",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["external"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "sim: runs the PyBullet simulator headless (slower; needs the sim extras)",
+]
