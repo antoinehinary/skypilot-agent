@@ -144,12 +144,24 @@ def test_step_callback_runs_every_control_step(drone: SimBackend) -> None:
     assert len(calls) == steps
 
 
-def test_chase_frame_is_rgb_image(drone: SimBackend) -> None:
-    frame = drone.render_chase_frame(width=64, height=48)
+def test_rendered_frame_is_rgb_image(drone: SimBackend) -> None:
+    frame = drone.render_frame(width=64, height=48)
 
     assert frame.shape == (48, 64, 3)
     assert frame.dtype == np.uint8
     assert frame.std() > 0  # not a blank image
+
+
+def test_marker_is_visible_and_does_not_collide(drone: SimBackend) -> None:
+    view = {"width": 64, "height": 48, "target_m": (0.0, 0.0, 0.5), "distance_m": 0.5}
+    before = drone.render_frame(**view)
+
+    drone.add_marker((0.0, 0.0, 0.5), radius_m=0.05)
+    after = drone.render_frame(**view)
+    drone.takeoff(1.0)  # flies straight up through the marker
+
+    assert np.any(before != after)
+    assert drone.get_state().position_m == pytest.approx((0.0, 0.0, 1.0), abs=TOL_M)
 
 
 def test_runs_are_deterministic() -> None:

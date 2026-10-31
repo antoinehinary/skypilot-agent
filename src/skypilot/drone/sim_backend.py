@@ -175,14 +175,26 @@ class SimBackend(DroneBackend):
         """Call `callback()` after every control step (e.g. to record frames)."""
         self._step_callbacks.append(callback)
 
-    def render_chase_frame(self, width: int = 640, height: int = 480) -> np.ndarray:
-        """Render the scene from an external camera that follows the drone, (H, W, 3) uint8 RGB."""
+    def render_frame(
+        self,
+        width: int = 640,
+        height: int = 480,
+        target_m: Vec3 | None = None,
+        distance_m: float | None = None,
+        yaw_deg: float | None = None,
+        pitch_deg: float | None = None,
+    ) -> np.ndarray:
+        """Render the scene from an external orbit camera, as an (H, W, 3) uint8 RGB array.
+
+        The camera looks at `target_m` (default: the drone, i.e. a chase camera) from
+        `distance_m` metres at the given yaw/pitch; unset values come from the GUI config.
+        """
         g = self.config.gui
         view = p.computeViewMatrixFromYawPitchRoll(
-            cameraTargetPosition=self._obs[_POS].tolist(),
-            distance=g.camera_distance_m,
-            yaw=g.camera_yaw_deg,
-            pitch=g.camera_pitch_deg,
+            cameraTargetPosition=list(target_m) if target_m else self._obs[_POS].tolist(),
+            distance=distance_m or g.camera_distance_m,
+            yaw=g.camera_yaw_deg if yaw_deg is None else yaw_deg,
+            pitch=g.camera_pitch_deg if pitch_deg is None else pitch_deg,
             roll=0.0,
             upAxisIndex=2,
             physicsClientId=self._client,
@@ -194,6 +206,23 @@ class SimBackend(DroneBackend):
             width, height, viewMatrix=view, projectionMatrix=proj, physicsClientId=self._client
         )
         return np.reshape(np.asarray(rgba, dtype=np.uint8), (height, width, 4))[:, :, :3]
+
+    def add_marker(
+        self,
+        position_m: Vec3,
+        radius_m: float = 0.01,
+        rgba: tuple[float, float, float, float] = (1.0, 0.4, 0.0, 1.0),
+    ) -> None:
+        """Place a visual-only sphere (no collision, no mass), e.g. to draw a flight trail."""
+        shape = p.createVisualShape(
+            p.GEOM_SPHERE, radius=radius_m, rgbaColor=list(rgba), physicsClientId=self._client
+        )
+        p.createMultiBody(
+            baseMass=0,
+            baseVisualShapeIndex=shape,
+            basePosition=list(position_m),
+            physicsClientId=self._client,
+        )
 
     # ------------------------------------------------------------------ internals
 
