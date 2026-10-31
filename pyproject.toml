@@ -48,3 +48,7 @@ testpaths = ["tests"]
 markers = [
     "sim: runs the PyBullet simulator headless (slower; needs the sim extras)",
 ]
+filterwarnings = [
+    # gym-pybullet-drones builds float64 observation bounds; gymnasium warns when casting them.
+    "ignore:.*Box (low|high)'s precision lowered:UserWarning",
+]

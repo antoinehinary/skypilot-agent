@@ -166,6 +166,11 @@ class SimBackend(DroneBackend):
 
     # ------------------------------------------------------------- sim-only API
 
+    @property
+    def control_period_s(self) -> float:
+        """Duration of one control step (1 / control_hz), seconds."""
+        return self._dt
+
     def add_step_callback(self, callback: Callable[[], None]) -> None:
         """Call `callback()` after every control step (e.g. to record frames)."""
         self._step_callbacks.append(callback)

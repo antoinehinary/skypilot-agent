@@ -48,7 +48,13 @@ The `CFLAGS` flag is needed to build `pybullet` from source on macOS. The simula
 `--no-deps` to skip its reinforcement-learning dependencies (torch, stable-baselines3), which this
 project does not use; pip will warn about them, which is expected.
 
-Check: `pytest` and `ruff check .` should pass.
+## Tests
+
+```bash
+pytest               # everything, simulator runs headless (~1 s)
+pytest -m "not sim"  # pure-Python tests only, no PyBullet needed
+ruff check . && ruff format --check .
+```
 
 ## Conventions
 
