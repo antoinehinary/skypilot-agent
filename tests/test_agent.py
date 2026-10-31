@@ -94,14 +94,15 @@ def test_scripted_mission_flies_through_mcp() -> None:
 def test_failed_tool_result_reaches_the_model() -> None:
     model = ScriptedModel(
         [
-            _code("print(goto(x_m=1.0, y_m=0.0, z_m=1.0))"),  # not flying yet
+            _code("print(takeoff(altitude_m=1.0))"),
+            _code("print(takeoff(altitude_m=1.5))"),  # allowed by safety, rejected by the drone
             _code("final_answer('gave up')"),
         ]
     )
 
-    run_mission("fly to (1, 0, 1)", model, max_steps=4, verbosity=LogLevel.OFF)
+    run_mission("take off twice", model, max_steps=4, verbosity=LogLevel.OFF)
 
-    assert "FAILED: not flying: take off first" in model.prompts[1]
+    assert "FAILED: already flying" in model.prompts[2]
 
 
 @pytest.mark.sim
@@ -161,3 +162,21 @@ def test_positional_tool_calls_work_through_mcp() -> None:
     match = re.search(r"flying at \(([-\d.]+), ([-\d.]+), ([-\d.]+)\)", result.output)
     assert match, result.output
     assert float(match.group(3)) == pytest.approx(1.0, abs=0.1)
+
+
+@pytest.mark.sim
+@pytest.mark.usefixtures("_needs_sim")
+def test_safety_refusal_reaches_the_model_and_the_drone_stays_put() -> None:
+    model = ScriptedModel(
+        [
+            _code("print(takeoff(altitude_m=1.0))"),
+            _code("print(goto(x_m=0.0, y_m=0.0, z_m=50.0))"),
+            _code("final_answer(get_state())"),
+        ]
+    )
+
+    result = run_mission("fly to 50 m", model, max_steps=5, verbosity=LogLevel.OFF)
+
+    assert "REFUSED: target z=50.0 m exceeds the 3.0 m altitude limit" in model.prompts[2]
+    z = float(re.search(r"at \([-\d.]+, [-\d.]+, ([-\d.]+)\)", result.output).group(1))
+    assert z == pytest.approx(1.0, abs=0.1)

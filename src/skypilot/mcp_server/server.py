@@ -19,20 +19,23 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from skypilot.config import CONFIG_DIR, VisionConfig, load_vision_config
+from skypilot.config import CONFIG_DIR, VisionConfig, load_safety_config, load_vision_config
 from skypilot.drone.backend import DroneBackend, DroneState, MoveResult
 from skypilot.mcp_server.vision_tools import register_vision_tools
+from skypilot.safety.guard import SafeDrone
 
 logger = logging.getLogger(__name__)
 
 SERVER_NAME = "skypilot-drone"
 DEFAULT_IMAGE_DIR = CONFIG_DIR.parent / "runs" / "images"
+DEFAULT_SAFETY_LOG = CONFIG_DIR.parent / "runs" / "safety_log.jsonl"
 INSTRUCTIONS = """\
 Controls one quadrotor drone with a downward-facing camera. World frame: x forward, y left, z up,
 origin at the take-off pad on the ground. All distances in metres, durations in seconds. Every
-movement tool blocks until the move has finished and reports OK or FAILED with the final position.
-Camera tools locate coloured objects on the ground. Take off before moving, and land at the end
-of a mission."""
+movement tool blocks until the move has finished and reports OK or FAILED with the final position,
+or REFUSED (the drone did not move) when a safety limit would be violated: geofence, altitude,
+speed, battery or mission time. Landing is always allowed. Camera tools locate coloured objects
+on the ground. Take off before moving, and land at the end of a mission."""
 
 Metres = Annotated[float, Field(description="metres, world frame")]
 
@@ -130,13 +133,26 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
     )
+    parser.add_argument(
+        "--safety-log",
+        type=Path,
+        default=DEFAULT_SAFETY_LOG,
+        help="JSON Lines file where every safety decision is appended",
+    )
     args = parser.parse_args(argv)
     # NOTE: stdout carries the MCP protocol; logging goes to stderr.
     logging.basicConfig(level=args.log_level, format="%(asctime)s %(name)s %(message)s")
 
     from skypilot.drone.sim_backend import SimBackend  # heavy import, only for the real server
 
-    with SimBackend(gui=args.gui) as drone:
+    # The simulator is only ever reachable through the safety guard: there is no bypass flag.
+    with SimBackend(gui=args.gui) as sim:
+        drone = SafeDrone(
+            sim,
+            load_safety_config(),
+            default_speed_mps=sim.config.motion.default_speed_mps,
+            log_path=args.safety_log,
+        )
         build_server(drone).run(transport="stdio")
 
 

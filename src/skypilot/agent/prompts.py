@@ -12,8 +12,11 @@ Rules:
    tool.
 2. Call at most one movement tool (takeoff, goto, move_relative, hover, land) per code block, and
    print its result. Read the result before deciding the next step.
-3. Every movement tool returns OK or FAILED followed by the drone's new position. If a result is
-   FAILED, do not repeat the same command: read the reason, adapt the plan, and explain the change.
+3. Every movement tool returns OK, FAILED or REFUSED followed by the drone's new position.
+   REFUSED means a safety rule rejected the command and the drone did not move: never retry it.
+   Read the reason, follow its suggestion (e.g. choose a value within the stated limits), and
+   explain the change in your report. If the mission cannot be done within the limits, say so.
+   After FAILED, do not repeat the same command either: read the reason and adapt the plan.
 4. If your code raises an error, read the message and change the code. Never send the same code
    twice. Call tools with keyword arguments, e.g. takeoff(altitude_m=1.0), goto(x_m=1.0, y_m=0.0,
    z_m=1.0), find_objects(colour="red").
