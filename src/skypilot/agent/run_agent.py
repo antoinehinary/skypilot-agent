@@ -14,6 +14,7 @@ import argparse
 import logging
 import sys
 import time
+from dataclasses import dataclass
 
 from dotenv import load_dotenv
 from mcp import StdioServerParameters
@@ -59,14 +60,28 @@ def count_action_steps(result: RunResult) -> int:
     return sum(1 for step in result.steps if "step_number" in step)
 
 
+@dataclass(frozen=True)
+class MissionResult:
+    """Agent run plus the drone's actual state afterwards.
+
+    Attributes:
+        run: smolagents run result (report in `run.output`, steps, tokens, state).
+        final_state: Drone state read from the get_state tool after the agent finished,
+            independently of the LLM: the ground truth to check the report against.
+    """
+
+    run: RunResult
+    final_state: str
+
+
 def run_mission(
     mission: str,
     model: Model,
     max_steps: int,
     gui: bool = False,
     verbosity: LogLevel = LogLevel.INFO,
-) -> RunResult:
-    """Start the MCP server, run the agent on `mission`, and return the full run result."""
+) -> MissionResult:
+    """Start the MCP server, run the agent on `mission`, then read the drone's final state."""
     with MCPClient(server_parameters(gui), structured_output=False) as tools:
         agent = CodeAgent(
             tools=[PositionalArgsTool(t) for t in tools],
@@ -76,7 +91,9 @@ def run_mission(
             code_block_tags="markdown",
             verbosity_level=verbosity,
         )
-        return agent.run(mission, return_full_result=True)
+        run = agent.run(mission, return_full_result=True)
+        get_state = next(t for t in tools if t.name == "get_state")
+        return MissionResult(run=run, final_state=str(get_state()))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -96,20 +113,22 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Model: {config.model_id}")
     start = time.monotonic()
-    result = run_mission(
+    mission = run_mission(
         args.mission,
         build_model(config),
         max_steps=args.max_steps or config.max_steps,
         gui=args.gui,
         verbosity=LogLevel.OFF if args.quiet else LogLevel.INFO,
     )
-    tokens = result.token_usage.total_tokens if result.token_usage else "n/a"
-    print(f"\n=== Mission report ({result.state}) ===\n{result.output}")
+    run = mission.run
+    tokens = run.token_usage.total_tokens if run.token_usage else "n/a"
+    print(f"\n=== Mission report from the agent ({run.state}) ===\n{run.output}")
+    print(f"\n=== Verified final state (read from the drone) ===\n{mission.final_state}")
     print(
-        f"\nSteps: {count_action_steps(result)} | tokens: {tokens} | "
+        f"\nSteps: {count_action_steps(run)} | tokens: {tokens} | "
         f"wall time: {time.monotonic() - start:.1f} s"
     )
-    return 0 if result.state == "success" else 1
+    return 0 if run.state == "success" else 1
 
 
 if __name__ == "__main__":

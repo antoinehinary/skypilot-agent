@@ -82,7 +82,7 @@ def test_scripted_mission_flies_through_mcp() -> None:
         ]
     )
 
-    result = run_mission("fly to (2, 2, 1)", model, max_steps=6, verbosity=LogLevel.OFF)
+    result = run_mission("fly to (2, 2, 1)", model, max_steps=6, verbosity=LogLevel.OFF).run
 
     assert result.state == "success"
     assert result.output.startswith("landed at (2.00, 2.00, 0.01) m")
@@ -110,7 +110,7 @@ def test_failed_tool_result_reaches_the_model() -> None:
 def test_agent_stops_at_step_budget() -> None:
     model = ScriptedModel([_code("print(get_state())")] * 10)
 
-    result = run_mission("hover forever", model, max_steps=2, verbosity=LogLevel.OFF)
+    result = run_mission("hover forever", model, max_steps=2, verbosity=LogLevel.OFF).run
 
     assert result.state == "max_steps_error"
     # 2 code steps + 1 forced final-answer call made by smolagents when the budget runs out.
@@ -142,7 +142,7 @@ def test_scripted_search_finds_and_hovers_above_the_red_box() -> None:
         ]
     )
 
-    result = run_mission("find the red box", model, max_steps=8, verbosity=LogLevel.OFF)
+    result = run_mission("find the red box", model, max_steps=8, verbosity=LogLevel.OFF).run
 
     assert result.state == "success", result.output
     x, y, z = map(
@@ -157,7 +157,7 @@ def test_scripted_search_finds_and_hovers_above_the_red_box() -> None:
 def test_positional_tool_calls_work_through_mcp() -> None:
     model = ScriptedModel([_code("print(takeoff(1.0))"), _code("final_answer(get_state())")])
 
-    result = run_mission("take off", model, max_steps=4, verbosity=LogLevel.OFF)
+    result = run_mission("take off", model, max_steps=4, verbosity=LogLevel.OFF).run
 
     match = re.search(r"flying at \(([-\d.]+), ([-\d.]+), ([-\d.]+)\)", result.output)
     assert match, result.output
@@ -175,8 +175,26 @@ def test_safety_refusal_reaches_the_model_and_the_drone_stays_put() -> None:
         ]
     )
 
-    result = run_mission("fly to 50 m", model, max_steps=5, verbosity=LogLevel.OFF)
+    result = run_mission("fly to 50 m", model, max_steps=5, verbosity=LogLevel.OFF).run
 
     assert "REFUSED: target z=50.00 m exceeds the 3.00 m altitude limit" in model.prompts[2]
     z = float(re.search(r"at \([-\d.]+, [-\d.]+, ([-\d.]+)\)", result.output).group(1))
+    assert z == pytest.approx(1.0, abs=0.1)
+
+
+@pytest.mark.sim
+@pytest.mark.usefixtures("_needs_sim")
+def test_final_state_is_read_from_the_drone_not_the_report() -> None:
+    model = ScriptedModel(
+        [
+            _code("print(takeoff(altitude_m=1.0))"),
+            _code("final_answer('Hovered at 3 meters.')"),  # what qwen3:8b reported, untrue
+        ]
+    )
+
+    mission = run_mission("climb", model, max_steps=4, verbosity=LogLevel.OFF)
+
+    assert mission.run.output == "Hovered at 3 meters."
+    z = float(re.search(r"at \([-\d.]+, [-\d.]+, ([-\d.]+)\)", mission.final_state).group(1))
+    assert mission.final_state.startswith("flying at")
     assert z == pytest.approx(1.0, abs=0.1)
