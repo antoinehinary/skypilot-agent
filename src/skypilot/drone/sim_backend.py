@@ -23,7 +23,8 @@ from gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
 from gym_pybullet_drones.envs.CtrlAviary import CtrlAviary
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
 
-from skypilot.config import SimConfig, load_sim_config
+from skypilot.config import SimConfig, WorldConfig, load_sim_config, load_world_config
+from skypilot.drone import sim_scene
 from skypilot.drone.backend import DroneBackend, DroneState, MoveResult, Vec3
 
 logger = logging.getLogger(__name__)
@@ -50,9 +51,12 @@ class SimBackend(DroneBackend):
     Args:
         config: Simulator parameters; defaults to `config/sim.yaml`.
         gui: Open the PyBullet GUI (demos) instead of running headless (tests, eval).
+        world: Objects to place in the scene; defaults to `config/world.yaml`.
     """
 
-    def __init__(self, config: SimConfig | None = None, gui: bool = False) -> None:
+    def __init__(
+        self, config: SimConfig | None = None, gui: bool = False, world: WorldConfig | None = None
+    ) -> None:
         self.config = config or load_sim_config()
         self._gui = gui
         # NOTE: gym-pybullet-drones prints to stdout during construction. Swallow it:
@@ -91,6 +95,8 @@ class SimBackend(DroneBackend):
 
         self._obs, *_ = self._env.reset()
         self._obs = self._obs[0]
+        self.world = world if world is not None else load_world_config()
+        self.object_ids = sim_scene.spawn_world(self._client, self.world)
         self._flying = False
         self._battery_pct = self.config.battery.initial_pct
         # The default spawn height is slightly above the pad: let the drone drop and
@@ -140,18 +146,21 @@ class SimBackend(DroneBackend):
         motion = self.config.motion
         t_start = self._start_command()
         cutoff_z = self._rest_z + motion.motor_cutoff_height_m
+
+        def touched_down() -> bool:
+            # Near the pad height, or resting on anything else (e.g. on top of a box).
+            return self._obs[2] <= cutoff_z or self._in_contact()
+
         target = np.array([self._setpoint[0], self._setpoint[1], self._rest_z])
-        self._ramp(
-            self._setpoint, target, motion.landing_speed_mps, stop=lambda: self._obs[2] <= cutoff_z
-        )
-        if self._obs[2] > cutoff_z:
-            self._settle(target, motion.settle_timeout_s, done=lambda: self._obs[2] <= cutoff_z)
-        touched_down = self._obs[2] <= cutoff_z
+        self._ramp(self._setpoint, target, motion.landing_speed_mps, stop=touched_down)
+        if not touched_down():
+            self._settle(target, motion.settle_timeout_s, done=touched_down)
+        landed = touched_down()
         # The PID never commands zero thrust, so stop the motors explicitly.
         self._flying = False
         self._run_steps(math.ceil(_GROUND_SETTLE_S / self._dt))
         self._setpoint = self._obs[_POS].copy()
-        if touched_down:
+        if landed:
             return self._result(True, t_start, f"landed at {_fmt(self._obs[_POS])}")
         return self._result(False, t_start, "landing timed out, motors stopped in the air")
 
@@ -200,22 +209,15 @@ class SimBackend(DroneBackend):
         `distance_m` metres at the given yaw/pitch; unset values come from the GUI config.
         """
         g = self.config.gui
-        view = p.computeViewMatrixFromYawPitchRoll(
-            cameraTargetPosition=list(target_m) if target_m else self._obs[_POS].tolist(),
-            distance=distance_m or g.camera_distance_m,
-            yaw=g.camera_yaw_deg if yaw_deg is None else yaw_deg,
-            pitch=g.camera_pitch_deg if pitch_deg is None else pitch_deg,
-            roll=0.0,
-            upAxisIndex=2,
-            physicsClientId=self._client,
+        return sim_scene.render_orbit(
+            self._client,
+            width,
+            height,
+            target_m=target_m or tuple(self._obs[_POS]),
+            distance_m=distance_m or g.camera_distance_m,
+            yaw_deg=g.camera_yaw_deg if yaw_deg is None else yaw_deg,
+            pitch_deg=g.camera_pitch_deg if pitch_deg is None else pitch_deg,
         )
-        proj = p.computeProjectionMatrixFOV(
-            fov=60.0, aspect=width / height, nearVal=0.05, farVal=100.0
-        )
-        _, _, rgba, _, _ = p.getCameraImage(
-            width, height, viewMatrix=view, projectionMatrix=proj, physicsClientId=self._client
-        )
-        return np.reshape(np.asarray(rgba, dtype=np.uint8), (height, width, 4))[:, :, :3]
 
     def add_marker(
         self,
@@ -224,15 +226,7 @@ class SimBackend(DroneBackend):
         rgba: tuple[float, float, float, float] = (1.0, 0.4, 0.0, 1.0),
     ) -> None:
         """Place a visual-only sphere (no collision, no mass), e.g. to draw a flight trail."""
-        shape = p.createVisualShape(
-            p.GEOM_SPHERE, radius=radius_m, rgbaColor=list(rgba), physicsClientId=self._client
-        )
-        p.createMultiBody(
-            baseMass=0,
-            baseVisualShapeIndex=shape,
-            basePosition=list(position_m),
-            physicsClientId=self._client,
-        )
+        sim_scene.add_marker(self._client, position_m, radius_m, rgba)
 
     # ------------------------------------------------------------------ internals
 
@@ -333,6 +327,10 @@ class SimBackend(DroneBackend):
     def _fail(self, message: str) -> MoveResult:
         logger.info("FAILED: %s", message)
         return MoveResult(False, self.get_state().position_m, 0.0, message)
+
+    def _in_contact(self) -> bool:
+        drone_id = int(self._env.DRONE_IDS[0])
+        return len(p.getContactPoints(bodyA=drone_id, physicsClientId=self._client)) > 0
 
     def _distance_to(self, target: np.ndarray) -> float:
         return float(np.linalg.norm(self._obs[_POS] - target))

@@ -178,3 +178,26 @@ def test_close_is_idempotent() -> None:
     backend = SimBackend()
     backend.close()
     backend.close()
+
+
+def test_world_boxes_are_rendered_at_their_configured_positions(drone: SimBackend) -> None:
+    for obj in drone.world.objects:
+        x, y = obj.position_m
+        frame = drone.render_frame(
+            32, 24, target_m=(x, y, obj.size_m), distance_m=0.3, pitch_deg=-89.0
+        )
+        centre = frame[12, 16].astype(int)
+        expected = np.array(drone.world.colours[obj.colour][:3]) * 255
+        dominant = int(np.argmax(expected))
+        assert int(np.argmax(centre)) == dominant, (obj.name, centre)
+
+
+def test_world_boxes_are_solid(drone: SimBackend) -> None:
+    box = drone.world.objects[0]
+    drone.takeoff(1.0)
+    drone.goto(box.position_m[0], box.position_m[1], 1.0)
+
+    result = drone.land()
+
+    assert drone.get_state().position_m[2] == pytest.approx(box.size_m, abs=0.03)
+    assert result.success, result.message

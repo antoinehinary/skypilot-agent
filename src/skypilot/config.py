@@ -73,6 +73,28 @@ class AgentConfig(_Model):
     ollama: OllamaConfig
 
 
+class WorldObject(_Model):
+    name: str
+    colour: str
+    position_m: tuple[float, float]
+    size_m: PositiveFloat
+
+
+class WorldConfig(_Model):
+    colours: dict[str, tuple[float, float, float, float]]
+    objects: list[WorldObject]
+
+    @model_validator(mode="after")
+    def _check_colours(self) -> Self:
+        for obj in self.objects:
+            if obj.colour not in self.colours:
+                raise ValueError(
+                    f"object {obj.name!r} uses colour {obj.colour!r}, "
+                    f"not one of {sorted(self.colours)}"
+                )
+        return self
+
+
 def _load_yaml(path: Path) -> dict:
     with path.open() as f:
         return yaml.safe_load(f)
@@ -81,6 +103,11 @@ def _load_yaml(path: Path) -> dict:
 def load_sim_config(path: Path | None = None) -> SimConfig:
     """Load and validate the simulator config (default: `config/sim.yaml`)."""
     return SimConfig.model_validate(_load_yaml(path or CONFIG_DIR / "sim.yaml"))
+
+
+def load_world_config(path: Path | None = None) -> WorldConfig:
+    """Load the scene objects (default: `config/world.yaml`)."""
+    return WorldConfig.model_validate(_load_yaml(path or CONFIG_DIR / "world.yaml"))
 
 
 def load_agent_config(path: Path | None = None) -> AgentConfig:

@@ -1,0 +1,24 @@
+# Objects placed in the simulated scene. Positions in metres, world frame (x forward,
+# y left, origin at the take-off pad). Boxes rest on the ground, z is derived from size.
+
+# Rendering colours (RGBA, 0-1). Detection does not use these: it has its own HSV
+# thresholds in config/vision.yaml, as a real camera would.
+colours:
+  red: [0.85, 0.10, 0.10, 1.0]
+  green: [0.10, 0.70, 0.20, 1.0]
+  blue: [0.10, 0.25, 0.85, 1.0]
+  yellow: [0.95, 0.80, 0.10, 1.0]
+
+objects:
+  - name: red_box
+    colour: red
+    position_m: [1.5, -1.0]
+    size_m: 0.3
+  - name: blue_box
+    colour: blue
+    position_m: [-0.5, 1.2]
+    size_m: 0.3
+  - name: green_box
+    colour: green
+    position_m: [2.0, 1.5]
+    size_m: 0.3

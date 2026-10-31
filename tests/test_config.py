@@ -4,7 +4,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from skypilot.config import CONFIG_DIR, SimConfig, load_sim_config
+from skypilot.config import CONFIG_DIR, SimConfig, WorldConfig, load_sim_config, load_world_config
 
 
 def _raw() -> dict:
@@ -41,3 +41,18 @@ def test_load_from_explicit_path(tmp_path: Path) -> None:
     path.write_text(yaml.safe_dump(raw))
 
     assert load_sim_config(path).control_hz == 240
+
+
+def test_default_world_loads() -> None:
+    world = load_world_config()
+
+    assert {obj.colour for obj in world.objects} <= set(world.colours)
+    assert any(obj.colour == "red" for obj in world.objects)
+
+
+def test_world_object_with_unknown_colour_is_rejected() -> None:
+    raw = yaml.safe_load((CONFIG_DIR / "world.yaml").read_text())
+    raw["objects"][0]["colour"] = "purple"
+
+    with pytest.raises(ValidationError, match="purple"):
+        WorldConfig.model_validate(raw)
