@@ -33,6 +33,7 @@ agent = [
     # The [ws] extra provides websockets, which mcpadapt imports unconditionally.
     "mcp[ws]>=1.20,<2",
     "smolagents[mcp,litellm]>=1.26",
+    "python-dotenv>=1.0",  # load MODEL_ID / API keys from .env
 ]
 dev = [
     "pytest>=8.0",
@@ -54,8 +55,4 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 testpaths = ["tests"]
 markers = [
     "sim: runs the PyBullet simulator headless (slower; needs the sim extras)",
-]
-filterwarnings = [
-    # gym-pybullet-drones builds float64 observation bounds; gymnasium warns when casting them.
-    "ignore:.*Box (low|high)'s precision lowered:UserWarning",
 ]

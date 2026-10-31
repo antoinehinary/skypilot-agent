@@ -14,6 +14,7 @@ import io
 import logging
 import math
 import time
+import warnings
 from collections.abc import Callable
 
 import numpy as np
@@ -55,8 +56,13 @@ class SimBackend(DroneBackend):
         self.config = config or load_sim_config()
         self._gui = gui
         # NOTE: gym-pybullet-drones prints to stdout during construction. Swallow it:
-        # stdout must stay clean for the MCP stdio transport.
-        with contextlib.redirect_stdout(io.StringIO()) as captured:
+        # stdout must stay clean for the MCP stdio transport. Its float64 observation
+        # bounds also make gymnasium warn about casting to float32 (harmless).
+        with (
+            contextlib.redirect_stdout(io.StringIO()) as captured,
+            warnings.catch_warnings(),
+        ):
+            warnings.filterwarnings("ignore", message=".*Box (low|high)'s precision lowered")
             self._env = CtrlAviary(
                 drone_model=_DRONE_MODEL,
                 num_drones=1,

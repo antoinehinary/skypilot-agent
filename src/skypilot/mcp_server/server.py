@@ -113,9 +113,12 @@ def build_server(drone: DroneBackend) -> FastMCP:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="SkyPilot drone MCP server (stdio).")
     parser.add_argument("--gui", action="store_true", help="show the PyBullet GUI")
+    parser.add_argument(
+        "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
+    )
     args = parser.parse_args(argv)
     # NOTE: stdout carries the MCP protocol; logging goes to stderr.
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    logging.basicConfig(level=args.log_level, format="%(asctime)s %(name)s %(message)s")
 
     from skypilot.drone.sim_backend import SimBackend  # heavy import, only for the real server
 
