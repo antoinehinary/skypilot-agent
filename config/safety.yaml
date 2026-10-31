@@ -1,0 +1,16 @@
+# Safety limits enforced on every drone command (SafeDrone). Landing is never refused.
+# SI units: metres, seconds, m/s, percent.
+
+geofence:
+  x_m: [-3.0, 3.0]
+  y_m: [-3.0, 3.0]
+
+altitude_m: [0.2, 3.0]        # allowed flight altitude for takeoff and moves (z, world frame)
+
+max_horizontal_speed_mps: 1.0 # checked against the requested move speed
+
+battery:
+  min_takeoff_pct: 30.0       # no takeoff below this level
+  reserve_pct: 20.0           # below this, only landing is allowed
+
+max_mission_time_s: 300.0     # sim time; after it, only landing is allowed

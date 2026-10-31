@@ -123,6 +123,47 @@ class VisionConfig(_Model):
     describe: DescribeConfig
 
 
+class Interval(_Model):
+    """Closed interval [low, high], written as a two-element list in YAML."""
+
+    low: float
+    high: float
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_pair(cls, value: object) -> object:
+        if isinstance(value, list | tuple) and len(value) == 2:
+            return {"low": value[0], "high": value[1]}
+        return value
+
+    @model_validator(mode="after")
+    def _ordered(self) -> Self:
+        if self.low > self.high:
+            raise ValueError(f"interval [{self.low}, {self.high}] is empty")
+        return self
+
+    def __contains__(self, value: float) -> bool:
+        return self.low <= value <= self.high
+
+
+class GeofenceConfig(_Model):
+    x_m: Interval
+    y_m: Interval
+
+
+class SafetyBatteryConfig(_Model):
+    min_takeoff_pct: PositiveFloat
+    reserve_pct: PositiveFloat
+
+
+class SafetyConfig(_Model):
+    geofence: GeofenceConfig
+    altitude_m: Interval
+    max_horizontal_speed_mps: PositiveFloat
+    battery: SafetyBatteryConfig
+    max_mission_time_s: PositiveFloat
+
+
 def _load_yaml(path: Path) -> dict:
     with path.open() as f:
         return yaml.safe_load(f)
@@ -141,6 +182,11 @@ def load_world_config(path: Path | None = None) -> WorldConfig:
 def load_vision_config(path: Path | None = None) -> VisionConfig:
     """Load colour thresholds and the scene-description model (default: `config/vision.yaml`)."""
     return VisionConfig.model_validate(_load_yaml(path or CONFIG_DIR / "vision.yaml"))
+
+
+def load_safety_config(path: Path | None = None) -> SafetyConfig:
+    """Load the safety limits (default: `config/safety.yaml`)."""
+    return SafetyConfig.model_validate(_load_yaml(path or CONFIG_DIR / "safety.yaml"))
 
 
 def load_agent_config(path: Path | None = None) -> AgentConfig:

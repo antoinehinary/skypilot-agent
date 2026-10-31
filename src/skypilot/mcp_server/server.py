@@ -52,7 +52,7 @@ def format_state(state: DroneState) -> str:
 
 def format_result(result: MoveResult, state: DroneState) -> str:
     """Tool result for a movement command: status, message, then the resulting state."""
-    status = "OK" if result.success else "FAILED"
+    status = "REFUSED" if result.refused else ("OK" if result.success else "FAILED")
     return f"{status}: {result.message}. Now {format_state(state)}."
 
 

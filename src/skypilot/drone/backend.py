@@ -69,12 +69,14 @@ class MoveResult:
         position_m: Final (x, y, z) position, metres.
         elapsed_s: Duration of the command, seconds.
         message: Short human-readable summary, e.g. "reached (1.00, 0.00, 1.00) in 2.4 s".
+        refused: True if a safety rule rejected the command before the drone moved.
     """
 
     success: bool
     position_m: Vec3
     elapsed_s: float
     message: str
+    refused: bool = False
 
 
 class DroneBackend(ABC):
