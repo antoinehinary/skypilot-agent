@@ -19,8 +19,17 @@ battery:
   hover_drain_pct_per_s: 0.2
   speed_drain_pct_per_mps: 0.1
 
+# Downward-facing onboard camera on a yaw-only gimbal (image top = drone forward).
+camera:
+  width_px: 320
+  height_px: 240
+  vertical_fov_deg: 60.0
+  mount_offset_m: 0.02         # lens below the drone's centre of mass
+  near_m: 0.01
+  far_m: 50.0
+
 gui:
-  realtime: true                       # slow the GUI down to wall-clock speed
+  realtime: true                      # slow the GUI down to wall-clock speed
   camera_distance_m: 3.0
   camera_yaw_deg: -30.0
   camera_pitch_deg: -30.0

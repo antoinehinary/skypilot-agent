@@ -25,7 +25,8 @@ from gym_pybullet_drones.utils.enums import DroneModel, Physics
 
 from skypilot.config import SimConfig, WorldConfig, load_sim_config, load_world_config
 from skypilot.drone import sim_scene
-from skypilot.drone.backend import DroneBackend, DroneState, MoveResult, Vec3
+from skypilot.drone.backend import CameraFrame, DroneBackend, DroneState, MoveResult, Vec3
+from skypilot.vision import geometry
 
 logger = logging.getLogger(__name__)
 
@@ -174,9 +175,21 @@ class SimBackend(DroneBackend):
             sim_time_s=self._sim_time(),
         )
 
-    def get_camera_image(self) -> np.ndarray:
-        # TODO: downward-facing onboard camera for ground-plane object localisation.
-        raise NotImplementedError("onboard camera is not available yet")
+    def get_camera_image(self) -> CameraFrame:
+        cam = self.config.camera
+        lens_m = self._obs[_POS] - np.array([0.0, 0.0, cam.mount_offset_m])
+        pose = geometry.downward_camera_pose(lens_m, float(self._obs[_YAW]))
+        image = sim_scene.render_from_pose(
+            self._client,
+            pose,
+            cam.width_px,
+            cam.height_px,
+            cam.vertical_fov_deg,
+            cam.near_m,
+            cam.far_m,
+        )
+        intrinsics = geometry.intrinsics_from_fov(cam.width_px, cam.height_px, cam.vertical_fov_deg)
+        return CameraFrame(image, intrinsics, pose, self._sim_time())
 
     def close(self) -> None:
         if not self._closed:

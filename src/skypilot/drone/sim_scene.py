@@ -53,6 +53,34 @@ def add_marker(client: int, position_m: Vec3, radius_m: float, rgba: RGBA) -> in
     )
 
 
+def render_from_pose(
+    client: int,
+    cam_to_world: np.ndarray,
+    width: int,
+    height: int,
+    vertical_fov_deg: float,
+    near_m: float,
+    far_m: float,
+) -> np.ndarray:
+    """Render what a pinhole camera at `cam_to_world` (OpenCV axes) sees, (H, W, 3) uint8 RGB."""
+    eye = cam_to_world[:3, 3]
+    optical_axis = cam_to_world[:3, 2]
+    image_up = -cam_to_world[:3, 1]
+    view = p.computeViewMatrix(
+        cameraEyePosition=eye.tolist(),
+        cameraTargetPosition=(eye + optical_axis).tolist(),
+        cameraUpVector=image_up.tolist(),
+        physicsClientId=client,
+    )
+    proj = p.computeProjectionMatrixFOV(
+        fov=vertical_fov_deg, aspect=width / height, nearVal=near_m, farVal=far_m
+    )
+    _, _, rgba, _, _ = p.getCameraImage(
+        width, height, viewMatrix=view, projectionMatrix=proj, physicsClientId=client
+    )
+    return np.reshape(np.asarray(rgba, dtype=np.uint8), (height, width, 4))[:, :, :3]
+
+
 def render_orbit(
     client: int,
     width: int,

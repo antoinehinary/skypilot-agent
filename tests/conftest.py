@@ -7,7 +7,8 @@ import math
 import numpy as np
 import pytest
 
-from skypilot.drone.backend import DroneBackend, DroneState, MoveResult, Vec3
+from skypilot.drone.backend import CameraFrame, DroneBackend, DroneState, MoveResult, Vec3
+from skypilot.vision import geometry
 
 
 class FakeBackend(DroneBackend):
@@ -22,6 +23,7 @@ class FakeBackend(DroneBackend):
         self.is_flying = False
         self.sim_time_s = 0.0
         self.closed = False
+        self.camera_image: np.ndarray | None = None  # tests can inject a (240, 320, 3) image
 
     def _fly_to(self, target: Vec3, speed_mps: float) -> MoveResult:
         elapsed = math.dist(self.position, target) / speed_mps
@@ -59,8 +61,15 @@ class FakeBackend(DroneBackend):
             sim_time_s=self.sim_time_s,
         )
 
-    def get_camera_image(self) -> np.ndarray:
-        return np.zeros((48, 64, 3), dtype=np.uint8)
+    def get_camera_image(self) -> CameraFrame:
+        """Blank 320x240 image with a real downward-camera model at the current position."""
+        image = self.camera_image if self.camera_image is not None else np.zeros((240, 320, 3))
+        return CameraFrame(
+            image=image.astype(np.uint8),
+            intrinsics=geometry.intrinsics_from_fov(320, 240, 60.0),
+            cam_to_world=geometry.downward_camera_pose(np.array(self.position), 0.0),
+            sim_time_s=self.sim_time_s,
+        )
 
     def close(self) -> None:
         self.closed = True

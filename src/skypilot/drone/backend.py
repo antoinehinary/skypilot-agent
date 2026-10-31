@@ -40,6 +40,26 @@ class DroneState:
     sim_time_s: float
 
 
+@dataclass(frozen=True, slots=True, eq=False)
+class CameraFrame:
+    """One onboard camera image with the calibration needed to locate what it shows.
+
+    Camera frame convention (OpenCV): z along the optical axis, x towards image right,
+    y towards image bottom. Pixel (u, v) is (column, row) with pixel centres at integers.
+
+    Attributes:
+        image: (H, W, 3) uint8 RGB image.
+        intrinsics: 3x3 pinhole matrix K, in pixels.
+        cam_to_world: 4x4 homogeneous transform from camera frame to world frame (metres).
+        sim_time_s: Capture time, seconds.
+    """
+
+    image: np.ndarray
+    intrinsics: np.ndarray
+    cam_to_world: np.ndarray
+    sim_time_s: float
+
+
 @dataclass(frozen=True, slots=True)
 class MoveResult:
     """Outcome of a blocking movement command.
@@ -97,8 +117,8 @@ class DroneBackend(ABC):
         """Return the current state without moving the drone."""
 
     @abstractmethod
-    def get_camera_image(self) -> np.ndarray:
-        """Return the current onboard camera frame as an (H, W, 3) uint8 RGB array."""
+    def get_camera_image(self) -> CameraFrame:
+        """Capture the downward-facing onboard camera, with its intrinsics and pose."""
 
     def close(self) -> None:  # noqa: B027 - optional hook, no-op by default
         """Release resources (simulator connection, radio link). Safe to call twice."""

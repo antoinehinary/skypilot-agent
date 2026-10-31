@@ -42,11 +42,21 @@ class GuiConfig(_Model):
     camera_pitch_deg: float
 
 
+class CameraConfig(_Model):
+    width_px: PositiveInt
+    height_px: PositiveInt
+    vertical_fov_deg: PositiveFloat
+    mount_offset_m: float
+    near_m: PositiveFloat
+    far_m: PositiveFloat
+
+
 class SimConfig(_Model):
     physics_hz: PositiveInt
     control_hz: PositiveInt
     motion: MotionConfig
     battery: BatteryConfig
+    camera: CameraConfig
     gui: GuiConfig
 
     @model_validator(mode="after")

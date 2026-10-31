@@ -201,3 +201,27 @@ def test_world_boxes_are_solid(drone: SimBackend) -> None:
 
     assert drone.get_state().position_m[2] == pytest.approx(box.size_m, abs=0.03)
     assert result.success, result.message
+
+
+def test_camera_image_matches_its_calibration() -> None:
+    """A small red box must appear exactly where the frame's K and pose predict."""
+    from skypilot.config import WorldConfig
+    from skypilot.vision.geometry import world_to_pixel
+
+    box = {"name": "target", "colour": "red", "position_m": (0.4, -0.3), "size_m": 0.1}
+    world = WorldConfig(colours={"red": (1.0, 0.0, 0.0, 1.0)}, objects=[box])
+    with SimBackend(world=world) as backend:
+        backend.takeoff(1.5)
+        frame = backend.get_camera_image()
+
+    image = frame.image.astype(int)
+    red = (image[..., 0] > 120) & (image[..., 1] < 60) & (image[..., 2] < 60)
+    rows, cols = np.nonzero(red)
+    expected_u, expected_v = world_to_pixel(
+        np.array([0.4, -0.3, 0.1]), frame.intrinsics, frame.cam_to_world
+    )
+
+    assert frame.image.shape == (240, 320, 3)
+    assert red.sum() > 50
+    assert cols.mean() == pytest.approx(expected_u, abs=1.5)
+    assert rows.mean() == pytest.approx(expected_v, abs=1.5)
