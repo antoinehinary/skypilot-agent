@@ -1,0 +1,21 @@
+# Same boxes as config/world.yaml, moved. From the pad at 2.5 m the camera sees about
+# x in [-1.4, 1.4] and y in [-1.9, 1.9]: the red box is outside that view, so it must be searched for.
+colours:
+  red: [0.85, 0.10, 0.10, 1.0]
+  green: [0.10, 0.70, 0.20, 1.0]
+  blue: [0.10, 0.25, 0.85, 1.0]
+  yellow: [0.95, 0.80, 0.10, 1.0]
+
+objects:
+  - name: red_box
+    colour: red
+    position_m: [-1.9, 1.6]
+    size_m: 0.3
+  - name: blue_box
+    colour: blue
+    position_m: [1.8, -1.2]
+    size_m: 0.3
+  - name: green_box
+    colour: green
+    position_m: [0.5, -2.0]
+    size_m: 0.3

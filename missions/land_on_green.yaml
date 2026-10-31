@@ -1,0 +1,22 @@
+id: land_on_green
+category: vision
+text: "Find the green box and land on top of it."
+checks:
+  - {type: landed}
+  - {type: final_position, object: green_box, tolerance_m: 0.15, z_m: [0.25, 0.45]}
+reference:
+  - "print(takeoff(altitude_m=2.5))"
+  - "print(goto(x_m=1.0, y_m=0.5, z_m=2.5))"
+  - |
+    import re
+    found = find_objects(colour="green")
+    print(found)
+    x, y = map(float, re.search(r"at \(([-\d.]+), ([-\d.]+)\)", found).groups())
+    print(goto(x_m=x, y_m=y, z_m=2.5))
+  - |
+    found = find_objects(colour="green")
+    print(found)
+    x, y = map(float, re.search(r"at \(([-\d.]+), ([-\d.]+)\)", found).groups())
+    print(goto(x_m=x, y_m=y, z_m=1.0))
+  - "print(land())"
+  - "final_answer(get_state())"

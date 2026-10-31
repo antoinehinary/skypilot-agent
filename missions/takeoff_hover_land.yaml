@@ -1,0 +1,12 @@
+id: takeoff_hover_land
+category: basic
+text: "Take off to 1 m, hover for 3 seconds, then land."
+checks:
+  - {type: landed}
+  - {type: final_position, xy: [0.0, 0.0], tolerance_m: 0.15}
+  - {type: no_refusals}
+reference:
+  - "print(takeoff(altitude_m=1.0))"
+  - "print(hover(seconds=3.0))"
+  - "print(land())"
+  - "final_answer(get_state())"

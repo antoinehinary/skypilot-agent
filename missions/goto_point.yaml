@@ -1,0 +1,13 @@
+id: goto_point
+category: basic
+text: "Take off to 1 m, fly to (2, 1, 1.5), then land there."
+checks:
+  - {type: visited, points: [[2.0, 1.0]], tolerance_m: 0.15}
+  - {type: landed}
+  - {type: final_position, xy: [2.0, 1.0], tolerance_m: 0.15}
+  - {type: no_refusals}
+reference:
+  - "print(takeoff(altitude_m=1.0))"
+  - "print(goto(x_m=2.0, y_m=1.0, z_m=1.5))"
+  - "print(land())"
+  - "final_answer(get_state())"

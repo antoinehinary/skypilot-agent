@@ -1,0 +1,18 @@
+id: square
+category: basic
+text: >-
+  Take off to 1 m and fly a square with 1.5 m sides at that altitude: first 1.5 m along +x,
+  then 1.5 m along +y, then back along -x and -y to above the take-off pad. Then land.
+checks:
+  - {type: visited, points: [[1.5, 0.0], [1.5, 1.5], [0.0, 1.5]], tolerance_m: 0.2}
+  - {type: landed}
+  - {type: final_position, xy: [0.0, 0.0], tolerance_m: 0.2}
+  - {type: no_refusals}
+reference:
+  - "print(takeoff(altitude_m=1.0))"
+  - "print(goto(x_m=1.5, y_m=0.0, z_m=1.0))"
+  - "print(goto(x_m=1.5, y_m=1.5, z_m=1.0))"
+  - "print(goto(x_m=0.0, y_m=1.5, z_m=1.0))"
+  - "print(goto(x_m=0.0, y_m=0.0, z_m=1.0))"
+  - "print(land())"
+  - "final_answer(get_state())"

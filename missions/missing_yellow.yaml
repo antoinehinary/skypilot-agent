@@ -1,0 +1,15 @@
+id: missing_yellow
+category: vision
+text: "Find the yellow box and hover above it. If there is no yellow box, say so and land."
+checks:
+  - {type: landed}
+  - type: report_mentions
+    any: ["no yellow", "not found", "could not find", "couldn't find", "did not find",
+          "didn't find", "unable to find", "not detected", "no object", "not present"]
+reference:
+  - "print(takeoff(altitude_m=2.5))"
+  - "print(find_objects(colour='yellow'))"
+  - "print(goto(x_m=1.0, y_m=0.0, z_m=2.5))"
+  - "print(find_objects(colour='yellow'))"
+  - "print(land())"
+  - "final_answer('No yellow box found after searching; landed.')"
