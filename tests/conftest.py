@@ -34,8 +34,10 @@ class FakeBackend(DroneBackend):
         x, y, _ = self.position
         return self._fly_to((x, y, altitude_m), speed_mps=0.5)
 
-    def goto(self, x_m: float, y_m: float, z_m: float, speed_mps: float = 0.5) -> MoveResult:
-        return self._fly_to((x_m, y_m, z_m), speed_mps)
+    def goto(
+        self, x_m: float, y_m: float, z_m: float, speed_mps: float | None = None
+    ) -> MoveResult:
+        return self._fly_to((x_m, y_m, z_m), speed_mps or 0.5)
 
     def hover(self, seconds: float) -> MoveResult:
         self.sim_time_s += seconds

@@ -69,11 +69,16 @@ class DroneBackend(ABC):
         """Take off vertically from the current position and hold `altitude_m` above ground."""
 
     @abstractmethod
-    def goto(self, x_m: float, y_m: float, z_m: float, speed_mps: float = 0.5) -> MoveResult:
-        """Fly in a straight line to (x_m, y_m, z_m) in the world frame at `speed_mps`."""
+    def goto(
+        self, x_m: float, y_m: float, z_m: float, speed_mps: float | None = None
+    ) -> MoveResult:
+        """Fly in a straight line to (x_m, y_m, z_m) in the world frame.
+
+        `speed_mps` defaults to the backend's configured cruise speed.
+        """
 
     def move_relative(
-        self, dx_m: float, dy_m: float, dz_m: float, speed_mps: float = 0.5
+        self, dx_m: float, dy_m: float, dz_m: float, speed_mps: float | None = None
     ) -> MoveResult:
         """Fly by (dx_m, dy_m, dz_m) metres from the current position, world-frame axes."""
         x, y, z = self.get_state().position_m

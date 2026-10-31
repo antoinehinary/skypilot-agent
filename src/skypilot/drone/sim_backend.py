@@ -107,9 +107,13 @@ class SimBackend(DroneBackend):
         target = np.array([start[0], start[1], altitude_m])
         return self._move(start, target, self.config.motion.takeoff_speed_mps, "took off to")
 
-    def goto(self, x_m: float, y_m: float, z_m: float, speed_mps: float = 0.5) -> MoveResult:
+    def goto(
+        self, x_m: float, y_m: float, z_m: float, speed_mps: float | None = None
+    ) -> MoveResult:
         if not self._flying:
             return self._fail("not flying: take off first")
+        if speed_mps is None:
+            speed_mps = self.config.motion.default_speed_mps
         return self._move(self._setpoint, np.array([x_m, y_m, z_m]), speed_mps, "reached")
 
     def hover(self, seconds: float) -> MoveResult:
