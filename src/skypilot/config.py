@@ -6,6 +6,7 @@ instead of silently falling back to a default.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Self
 
@@ -58,8 +59,37 @@ class SimConfig(_Model):
         return self
 
 
+class OllamaConfig(_Model):
+    num_ctx: PositiveInt
+    think: bool
+
+
+class AgentConfig(_Model):
+    model_id: str
+    api_base: str
+    request_timeout_s: PositiveFloat
+    temperature: float
+    max_steps: PositiveInt
+    ollama: OllamaConfig
+
+
+def _load_yaml(path: Path) -> dict:
+    with path.open() as f:
+        return yaml.safe_load(f)
+
+
 def load_sim_config(path: Path | None = None) -> SimConfig:
     """Load and validate the simulator config (default: `config/sim.yaml`)."""
-    path = path or CONFIG_DIR / "sim.yaml"
-    with path.open() as f:
-        return SimConfig.model_validate(yaml.safe_load(f))
+    return SimConfig.model_validate(_load_yaml(path or CONFIG_DIR / "sim.yaml"))
+
+
+def load_agent_config(path: Path | None = None) -> AgentConfig:
+    """Load the agent config (default: `config/agent.yaml`).
+
+    The MODEL_ID and OLLAMA_API_BASE environment variables override `model_id` and `api_base`.
+    """
+    raw = _load_yaml(path or CONFIG_DIR / "agent.yaml")
+    for key, env in (("model_id", "MODEL_ID"), ("api_base", "OLLAMA_API_BASE")):
+        if os.environ.get(env):
+            raw[key] = os.environ[env]
+    return AgentConfig.model_validate(raw)
