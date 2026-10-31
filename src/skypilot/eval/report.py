@@ -104,7 +104,10 @@ def results_markdown(runs: dict[str, list[Row]]) -> str:
     )
     return (
         f"{comparison_table(runs)}\n\n{details}\n\n"
-        f"{n} missions, one run per configuration at temperature 0 (runs are deterministic), "
+        f"{n} missions, one run per configuration at temperature 0 with a fixed seed: repeatable "
+        "within a session, but a rerun on another day can differ on some missions, so treat "
+        "single-mission differences between configurations as indicative, not significant. "
+        "Runs were "
         "headless on an Apple Silicon MacBook Pro, all models local in Ollama. "
         "Success is scored on the drone's verified final state and the safety log, never on the "
         f"agent's report; a report's position counts as correct within {tolerance} m."

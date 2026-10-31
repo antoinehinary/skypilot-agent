@@ -4,7 +4,9 @@
 model_id: ollama_chat/qwen3:8b
 api_base: http://localhost:11434
 request_timeout_s: 120      # per LLM call
-temperature: 0.0            # deterministic decoding for reproducible missions
+temperature: 0.0            # greedy decoding
+seed: 42                    # with temperature 0, makes runs repeatable within a session; across
+                            # sessions Ollama can still differ slightly (GPU arithmetic, batching)
 max_steps: 12               # agent reasoning/action steps before giving up
 planning_interval: null     # N: smolagents writes an explicit plan every N steps (null: never)
 

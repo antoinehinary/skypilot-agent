@@ -32,6 +32,8 @@ logger = logging.getLogger(__name__)
 def build_model(config: AgentConfig) -> LiteLLMModel:
     """LiteLLM client for `config.model_id`, with Ollama-specific options when relevant."""
     kwargs: dict = {"timeout": config.request_timeout_s, "temperature": config.temperature}
+    if config.seed is not None:
+        kwargs["seed"] = config.seed
     if config.model_id.startswith("ollama"):
         kwargs |= {"num_ctx": config.ollama.num_ctx, "think": config.ollama.think}
         api_base = config.api_base

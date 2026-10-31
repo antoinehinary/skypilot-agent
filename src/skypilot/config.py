@@ -79,6 +79,7 @@ class AgentConfig(_Model):
     api_base: str
     request_timeout_s: PositiveFloat
     temperature: float
+    seed: int | None
     max_steps: PositiveInt
     planning_interval: PositiveInt | None
     ollama: OllamaConfig
