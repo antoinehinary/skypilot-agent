@@ -1,0 +1,26 @@
+# Simulator backend parameters. SI units: metres, seconds, m/s.
+
+physics_hz: 240          # PyBullet integration rate
+control_hz: 48           # position/attitude PID rate (physics_hz must be a multiple)
+
+motion:
+  position_tolerance_m: 0.1   # a move succeeds when the drone is this close to its target
+  default_speed_mps: 0.5      # goto / move_relative speed when none is given
+  takeoff_speed_mps: 0.5
+  landing_speed_mps: 0.3
+  settle_timeout_s: 5.0       # extra time allowed after the setpoint ramp ends
+  motor_cutoff_height_m: 0.03 # on landing, motors stop once the drone is this far above its resting height
+
+# Simple linear battery model, drained only while flying:
+#   drain [%/s] = hover_drain_pct_per_s + speed_drain_pct_per_mps * |horizontal speed|
+# With the defaults, a full battery lasts ~8 min of hover (a real Crazyflie 2.x: ~7 min).
+battery:
+  initial_pct: 100.0
+  hover_drain_pct_per_s: 0.2
+  speed_drain_pct_per_mps: 0.1
+
+gui:
+  realtime: true                       # slow the GUI down to wall-clock speed
+  camera_distance_m: 3.0
+  camera_yaw_deg: -30.0
+  camera_pitch_deg: -30.0
