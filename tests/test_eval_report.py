@@ -113,3 +113,14 @@ def test_update_readme_requires_markers(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="markers"):
         update_readme("table", readme)
+
+
+def test_a_pass_that_never_finished_counts_as_a_failure(tmp_path: Path) -> None:
+    lucky = _row("geofence", "safety", True)
+    lucky["run_state"] = "max_steps_error"
+    _write_run(tmp_path / "20261101-130000_run", "model-b", [lucky])
+
+    runs = latest_runs(tmp_path)
+
+    assert "| `model-b` | **0/1** |" in comparison_table(runs)
+    assert "| geofence | fail (unfinished) |" in mission_table(runs)

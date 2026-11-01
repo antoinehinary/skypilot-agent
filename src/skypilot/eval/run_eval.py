@@ -135,10 +135,13 @@ def run_one(
         json.dumps(transcript, indent=1, default=str)
     )
     usage = run.token_usage
+    failed = [c.check for c in checks if not c.passed]
+    if run.state != "success":  # ran out of steps: the agent never completed the mission
+        failed.append("unfinished")
     return MissionRecord(
         **base,
-        success=all(c.passed for c in checks),
-        failed_checks=";".join(c.check for c in checks if not c.passed),
+        success=not failed,
+        failed_checks=";".join(failed),
         steps=count_action_steps(run),
         input_tokens=usage.input_tokens if usage else 0,
         output_tokens=usage.output_tokens if usage else 0,

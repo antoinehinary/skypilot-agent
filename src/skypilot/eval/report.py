@@ -36,8 +36,24 @@ def latest_runs(
     return runs
 
 
+def succeeded(row: Row) -> bool:
+    """All checks passed and the agent finished (final answer within its step budget).
+
+    Applied here as well as in the runner so results recorded before the rule existed are
+    scored the same way.
+    """
+    return row["success"] == "True" and row["run_state"] == "success"
+
+
+def failure_reason(row: Row) -> str:
+    reasons = [c for c in row["failed_checks"].split(";") if c]
+    if row["run_state"] != "success" and "unfinished" not in reasons:
+        reasons.append("unfinished")
+    return ";".join(reasons)
+
+
 def _passed(rows: list[Row]) -> str:
-    return f"{sum(r['success'] == 'True' for r in rows)}/{len(rows)}"
+    return f"{sum(succeeded(r) for r in rows)}/{len(rows)}"
 
 
 def comparison_table(runs: dict[str, list[Row]]) -> str:
@@ -88,10 +104,10 @@ def mission_table(runs: dict[str, list[Row]]) -> str:
             r = missions[mission].get(label)
             if r is None:
                 cells.append("-")
-            elif r["success"] == "True":
+            elif succeeded(r):
                 cells.append("pass")
             else:
-                cells.append(f"fail ({r['failed_checks'] or r['run_state']})")
+                cells.append(f"fail ({failure_reason(r)})")
         lines.append(f"| {mission} | " + " | ".join(cells) + " |")
     return "\n".join(lines)
 
