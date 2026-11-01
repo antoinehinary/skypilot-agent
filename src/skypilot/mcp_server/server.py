@@ -15,7 +15,7 @@ import logging
 import re
 from dataclasses import replace
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
@@ -34,6 +34,10 @@ from skypilot.drone.backend import DroneBackend, DroneState, MoveResult
 from skypilot.mcp_server.vision_tools import SearchArea, register_vision_tools
 from skypilot.safety.guard import SafeDrone
 from skypilot.vision.search import Rect
+
+if TYPE_CHECKING:
+    from skypilot.drone.recording import FlightRecorder
+    from skypilot.drone.sim_backend import SimBackend
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +206,9 @@ def main(argv: list[str] | None = None) -> None:
         "--world", type=Path, help="scene objects YAML (default: config/world.yaml)"
     )
     parser.add_argument("--initial-battery", type=float, help="starting battery, percent")
+    parser.add_argument(
+        "--record-frames", type=Path, help="write recording frames (PNG) to this directory"
+    )
     args = parser.parse_args(argv)
     # NOTE: stdout carries the MCP protocol; logging goes to stderr.
     logging.basicConfig(level=args.log_level, format="%(asctime)s %(name)s %(message)s")
@@ -223,7 +230,26 @@ def main(argv: list[str] | None = None) -> None:
             default_speed_mps=sim.config.motion.default_speed_mps,
             log_path=args.safety_log,
         )
+        if args.record_frames is not None:
+            sim.add_step_callback(_flight_recorder(sim, limits, args.record_frames))
         build_server(drone, limits=limits).run(transport="stdio")
+
+
+def _flight_recorder(sim: SimBackend, limits: SafetyConfig, frames_dir: Path) -> FlightRecorder:
+    """Recorder whose fixed overview frames the whole geofence."""
+    from skypilot.drone.recording import FlightRecorder  # heavy import, recording only
+
+    fence = limits.geofence
+    centre = ((fence.x_m.low + fence.x_m.high) / 2, (fence.y_m.low + fence.y_m.high) / 2, 0.5)
+    span = max(fence.x_m.high - fence.x_m.low, fence.y_m.high - fence.y_m.low)
+    return FlightRecorder(
+        sim,
+        overview_target_m=centre,
+        overview_distance_m=1.25 * span,
+        overview_pitch_deg=-55.0,
+        frame_every=6,
+        frames_dir=frames_dir,
+    )
 
 
 if __name__ == "__main__":

@@ -15,56 +15,11 @@ import logging
 import sys
 from pathlib import Path
 
-import imageio.v3 as iio
-import numpy as np
-
 from skypilot.drone.backend import MoveResult
+from skypilot.drone.recording import FlightRecorder
 from skypilot.drone.sim_backend import SimBackend
 
 logger = logging.getLogger("square_flight")
-
-
-class FlightRecorder:
-    """Step callback that drops trail markers and captures two-panel frames."""
-
-    def __init__(
-        self,
-        drone: SimBackend,
-        overview_target_m: tuple[float, float, float],
-        overview_distance_m: float,
-        panel_size: tuple[int, int],
-        frame_every: int,
-        trail_every: int,
-    ) -> None:
-        self.drone = drone
-        self.overview_target_m = overview_target_m
-        self.overview_distance_m = overview_distance_m
-        self.width, self.height = panel_size
-        self.frame_every = frame_every
-        self.trail_every = trail_every
-        self.frames: list[np.ndarray] = []
-        self._step = 0
-
-    def __call__(self) -> None:
-        state = self.drone.get_state()
-        if state.is_flying and self._step % self.trail_every == 0:
-            self.drone.add_marker(state.position_m)
-        if self._step % self.frame_every == 0:
-            overview = self.drone.render_frame(
-                self.width,
-                self.height,
-                target_m=self.overview_target_m,
-                distance_m=self.overview_distance_m,
-                pitch_deg=-40.0,
-            )
-            chase = self.drone.render_frame(self.width, self.height, distance_m=0.6)
-            self.frames.append(np.hstack([overview, chase]))
-        self._step += 1
-
-    def save(self, path: Path, playback_speed: float) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        frame_ms = 1000 * self.frame_every * self.drone.control_period_s / playback_speed
-        iio.imwrite(path, self.frames, duration=frame_ms, loop=0)
 
 
 def fly_square(
@@ -107,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
                 overview_distance_m=0.8 + 1.2 * args.side,
                 panel_size=tuple(args.panel_size),
                 frame_every=args.frame_every,
-                trail_every=2,
+                trail_rgba=(1.0, 0.4, 0.0, 1.0),  # orange: no colour detection in this demo
             )
             drone.add_step_callback(recorder)
 

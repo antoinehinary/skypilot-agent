@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import argparse
 import logging
+import shutil
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -54,6 +56,7 @@ class ServerOptions:
         initial_battery_pct: Starting battery; None for the sim config value.
         safety_log: JSON Lines file for this run's safety decisions; None for the default.
         log_level: Server log level on stderr (WARNING shows safety refusals).
+        record_frames: Directory where the server writes recording frames; None: no recording.
     """
 
     gui: bool = False
@@ -61,6 +64,7 @@ class ServerOptions:
     initial_battery_pct: float | None = None
     safety_log: Path | None = None
     log_level: str = "WARNING"
+    record_frames: Path | None = None
 
 
 def server_parameters(options: ServerOptions | None = None) -> StdioServerParameters:
@@ -77,6 +81,8 @@ def server_parameters(options: ServerOptions | None = None) -> StdioServerParame
         args += ["--world", str(options.world)]
     if options.initial_battery_pct is not None:
         args += ["--initial-battery", str(options.initial_battery_pct)]
+    if options.record_frames is not None:
+        args += ["--record-frames", str(options.record_frames)]
     if options.safety_log is not None:
         args += ["--safety-log", str(options.safety_log)]
     return StdioServerParameters(command=sys.executable, args=args)
@@ -139,6 +145,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", help="LiteLLM model id (default: MODEL_ID or config/agent.yaml)")
     parser.add_argument("--max-steps", type=int, help="override max_steps from config")
     parser.add_argument("--quiet", action="store_true", help="only print the final report")
+    parser.add_argument(
+        "--world", type=Path, help="scene objects YAML (default: config/world.yaml)"
+    )
+    parser.add_argument("--record", type=Path, help="save the flight as a GIF, e.g. media/run.gif")
+    parser.add_argument("--record-speed", type=float, default=3.0, help="GIF speed-up factor")
     args = parser.parse_args(argv)
 
     load_dotenv()
@@ -148,12 +159,13 @@ def main(argv: list[str] | None = None) -> int:
         config = config.model_copy(update={"model_id": args.model})
 
     print(f"Model: {config.model_id}")
+    frames_dir = Path(tempfile.mkdtemp(prefix="skypilot-frames-")) if args.record else None
     start = time.monotonic()
     mission = run_mission(
         args.mission,
         build_model(config),
         max_steps=args.max_steps or config.max_steps,
-        server=ServerOptions(gui=args.gui),
+        server=ServerOptions(gui=args.gui, world=args.world, record_frames=frames_dir),
         verbosity=LogLevel.OFF if args.quiet else LogLevel.INFO,
         planning_interval=config.planning_interval,
     )
@@ -165,6 +177,14 @@ def main(argv: list[str] | None = None) -> int:
         f"\nSteps: {count_action_steps(run)} | tokens: {tokens} | "
         f"wall time: {time.monotonic() - start:.1f} s"
     )
+    if args.record:
+        # The server streamed the frames to disk; assemble them here, after it has exited.
+        from skypilot.drone.recording import assemble_gif  # heavy import, recording only
+
+        count = assemble_gif(frames_dir, args.record, args.record_speed)
+        shutil.rmtree(frames_dir)
+        size_mb = args.record.stat().st_size / 1e6
+        print(f"Saved {args.record} ({count} frames, {size_mb:.1f} MB)")
     return 0 if run.state == "success" else 1
 
 
