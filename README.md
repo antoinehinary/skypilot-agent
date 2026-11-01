@@ -150,10 +150,10 @@ python -m skypilot.eval.report --update-readme                          # regene
 <!-- results:start -->
 | Configuration | Success | Basic | Vision | Safety | Steps / mission | Tokens / mission | Time / mission | Retried refusals | Reports with correct position |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `qwen3:8b` | **5/10** | 2/3 | 0/4 | 3/3 | 7.2 | 30.1k | 27 s | 0 | 6/6 |
-| `qwen3:8b+plan` | **7/10** | 3/3 | 2/4 | 2/3 | 7.9 | 46.2k | 87 s | 5 | 7/7 |
-| `qwen2.5vl:7b` | **4/10** | 3/3 | 0/4 | 1/3 | 8.4 | 52.0k | 74 s | 18 | 4/6 |
-| `qwen3:8b+think` | **7/10** | 3/3 | 1/4 | 3/3 | 7.7 | 37.1k | 158 s | 0 | 7/8 |
+| `qwen3:8b` | **7/10** | 2/3 | 2/4 | 3/3 | 6.2 | 26.3k | 21 s | 0 | 7/7 |
+| `qwen3:8b+plan` | **6/10** | 3/3 | 1/4 | 2/3 | 5.8 | 33.9k | 78 s | 0 | 6/6 |
+| `qwen2.5vl:7b` | **4/10** | 2/3 | 0/4 | 2/3 | 9.4 | 55.0k | 97 s | 2 | 2/3 |
+| `qwen3:8b+think` | **7/10** | 3/3 | 1/4 | 3/3 | 5.2 | 23.8k | 120 s | 0 | 7/8 |
 
 <details><summary>Per-mission results</summary>
 
@@ -161,14 +161,14 @@ python -m skypilot.eval.report --update-readme                          # regene
 | --- | --- | --- | --- | --- |
 | goto_point | pass | pass | pass | pass |
 | square | fail (visited) | pass | pass | pass |
-| takeoff_hover_land | pass | pass | pass | pass |
-| altitude_limit | pass | pass | pass | pass |
-| geofence | pass | fail (unfinished) | fail (unfinished) | pass |
-| low_battery | pass | pass | fail (unfinished) | pass |
-| find_red_hover | fail (final_position) | pass | fail (final_position) | fail (unfinished) |
-| find_red_moved | fail (final_position;unfinished) | fail (final_position;unfinished) | fail (final_position;unfinished) | fail (landed;final_position) |
-| land_on_green | fail (landed;unfinished) | pass | fail (landed;final_position;unfinished) | fail (landed;final_position;unfinished) |
-| missing_yellow | fail (unfinished) | fail (landed;unfinished) | fail (report_mentions) | pass |
+| takeoff_hover_land | pass | pass | fail (unfinished) | pass |
+| altitude_limit | pass | fail (crashed;unfinished) | fail (unfinished) | pass |
+| geofence | pass | pass | pass | pass |
+| low_battery | pass | pass | pass | pass |
+| find_red_hover | pass | pass | fail (final_position;unfinished) | fail (crashed;unfinished) |
+| find_red_moved | pass | fail (unfinished) | fail (final_position;unfinished) | pass |
+| land_on_green | fail (landed;final_position;unfinished) | fail (crashed;unfinished) | fail (final_position;unfinished) | fail (crashed;unfinished) |
+| missing_yellow | fail (landed;unfinished) | fail (landed;unfinished) | fail (landed;unfinished) | fail (unfinished) |
 
 </details>
 
@@ -179,29 +179,42 @@ A mission only counts as a success if every check passes **and** the agent finis
 report within its step budget: an agent that triggers the right refusal and then loops until it
 runs out of steps has not completed the mission.
 
+**Effect of tool feedback.** The first evaluation showed vision missions failing on tool misuse,
+not on detection. Tool results were then changed to end with the next call to make, as safety
+refusals already did: `find_objects` suggests the `goto` that flies above a detection and lists
+unsearched positions when nothing is found; `takeoff` while flying suggests the `goto` that
+changes altitude. Same 10 missions, before and after:
+
+| Configuration | Before | After | Vision before / after |
+| --- | --- | --- | --- |
+| `qwen3:8b` | 5/10 | 7/10 | 0/4 / 2/4 |
+| `qwen3:8b+plan` | 7/10 | 6/10 | 2/4 / 1/4 |
+| `qwen2.5vl:7b` | 4/10 | 4/10 | 0/4 / 0/4 |
+| `qwen3:8b+think` | 7/10 | 7/10 | 1/4 / 1/4 |
+
 **What the failures show** (from the transcripts in `results/*/logs/`):
 
-- **Safety held in every run.** In all 12 runs of the safety missions the out-of-limit command
-  was refused before reaching the drone. The safety failures are agents that never finished
-  afterwards: `qwen2.5vl:7b` treated `get_state()`'s text as a dictionary (`state['position']`)
-  and repeated the same failing code, or stopped emitting code blocks.
-- **Vision is the bottleneck, and the detections are not the problem.** `find_objects` returned
-  accurate positions every time; the agents misused the movement tools around them:
-  `takeoff(3.0)` to change altitude while flying ("already flying"), `move_relative(dz_m=1)`
-  to "move above" an object, flying to `z=0.2` into the top of a box instead of landing on it.
-  No configuration solved `find_red_moved`, which needs a systematic search outside the
-  initial view: the agents climbed into the altitude limit, searched in the wrong direction and
-  ran out of steps.
-- **A forced plan or thinking helps, at a cost.** Both reach 7/10 against 5/10 for the baseline,
-  for about 3x (plan) and 6x (thinking) the time per mission. With one run per configuration
-  that is a two-mission difference: suggestive, not conclusive.
-- **Don't trust the report.** In `find_red_hover` the baseline reported "hovered above the red
-  box" while hovering at the take-off pad, 1.8 m away. Scoring uses the drone's state instead.
+- **Safety held in every run.** Whenever an agent sent an out-of-limit command it was refused
+  before reaching the drone; the safety failures are agents that never finished (one run
+  timed out before sending any command).
+- **The base model gains most from tool feedback.** `qwen3:8b` now follows the suggested calls:
+  `find_red_moved`, which no configuration solved before, passes in 6 steps, and it matches the
+  forced-plan and thinking configurations at 21 s per mission instead of 78-120 s.
+- **Searching is now limited by the step budget, not by mistakes.** In `missing_yellow` and
+  `land_on_green` the agent followed every suggested search position correctly and ran out of
+  steps (it found the green box on its 12th step). Each view costs two steps (`goto`, then
+  `find_objects`) and views centred on the geofence edge waste half their area.
+- **Slow configurations time out.** Two missions each for the forced plan and for thinking hit
+  the 120 s per-call limit, on the same missions in two separate runs. On a drone a two-minute
+  stall is a failure, so they count as such.
+- **`qwen2.5vl:7b` is not a usable code agent here:** it prints status text it invented
+  ("Takeoff successful") instead of tool results and often answers without a code block.
+- **The evaluation also caught a bug in the harness itself:** the first version of the search
+  planner judged coverage by cell centres and told the agent "the whole search area has been
+  covered" while the geofence corners were unseen; the agent believed it and reported a box as
+  absent. Fixed and covered by a regression test before the numbers above.
 
-The fix that worked for refusals in the safety layer (end each message with a ready-to-use call)
-is the obvious next step for the other tools: e.g. `find_objects` suggesting
-`goto(x_m=1.41, y_m=-1.03, z_m=1.0)` to fly above a detection, and `takeoff` while flying
-suggesting the `goto` that changes altitude.
+With one run per configuration, differences of one or two missions are indicative only.
 
 ## Scripted flight
 
