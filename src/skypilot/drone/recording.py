@@ -64,6 +64,7 @@ class FlightRecorder:
             (frames_dir / "meta.json").write_text(json.dumps(meta))
 
     def __call__(self) -> None:
+        """Called after every control step: drop a trail marker, capture a frame."""
         state = self.drone.get_state()
         if state.is_flying and self._step % self.trail_every == 0:
             self.drone.add_marker(state.position_m, rgba=self.trail_rgba)

@@ -91,11 +91,15 @@ Check = Annotated[
 
 
 class Setup(_Model):
+    """Mission setup: alternative world file and starting battery."""
+
     world: Path | None = None  # relative to the missions directory
     initial_battery_pct: PositiveFloat | None = None
 
 
 class Mission(_Model):
+    """A mission: task text, setup, checks and a reference solution."""
+
     id: str
     category: Literal["basic", "vision", "safety"]
     text: str

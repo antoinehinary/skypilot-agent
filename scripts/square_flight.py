@@ -35,6 +35,7 @@ def fly_square(
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Command-line options of the square-flight script."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--gui", action="store_true", help="show the PyBullet GUI")
     parser.add_argument("--side", type=float, default=1.0, help="square side, m")
@@ -49,6 +50,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Fly the square, optionally record it; exit code 0 if every command succeeded."""
     args = parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 

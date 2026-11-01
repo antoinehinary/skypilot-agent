@@ -12,7 +12,7 @@ import logging
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 from skypilot.config import SafetyConfig, load_safety_config
 from skypilot.drone.backend import CameraFrame, DroneBackend, DroneState, MoveResult
@@ -61,6 +61,7 @@ class SafeDrone(DroneBackend):
 
     # ------------------------------------------------------------------ commands
 
+    @override
     def takeoff(self, altitude_m: float) -> MoveResult:
         state = self._drone.get_state()
         decision = rules.validate_takeoff(state, altitude_m, self.limits)
@@ -68,6 +69,7 @@ class SafeDrone(DroneBackend):
             return refusal
         return self._drone.takeoff(altitude_m)
 
+    @override
     def goto(
         self, x_m: float, y_m: float, z_m: float, speed_mps: float | None = None
     ) -> MoveResult:
@@ -79,6 +81,7 @@ class SafeDrone(DroneBackend):
             return refusal
         return self._drone.goto(x_m, y_m, z_m, speed_mps)
 
+    @override
     def hover(self, seconds: float) -> MoveResult:
         state = self._drone.get_state()
         decision = rules.validate_hover(state, seconds, self.limits)
@@ -86,6 +89,7 @@ class SafeDrone(DroneBackend):
             return refusal
         return self._drone.hover(seconds)
 
+    @override
     def land(self) -> MoveResult:
         state = self._drone.get_state()
         self._record("land", {}, state, rules.validate_land(state, self.limits))
@@ -93,12 +97,15 @@ class SafeDrone(DroneBackend):
 
     # move_relative is inherited: it becomes a goto and is checked there.
 
+    @override
     def get_state(self) -> DroneState:
         return self._drone.get_state()
 
+    @override
     def get_camera_image(self) -> CameraFrame:
         return self._drone.get_camera_image()
 
+    @override
     def close(self) -> None:
         self._drone.close()
 

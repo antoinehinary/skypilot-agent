@@ -51,6 +51,7 @@ def _first_refusal(checks: Iterable[Check]) -> Decision:
 
 
 def check_flying(state: DroneState) -> Decision | None:
+    """Refuse moves while the drone is on the ground."""
     if not state.is_flying:
         return _refuse("not_flying", "the drone is not flying; call takeoff first")
     return None
@@ -59,6 +60,7 @@ def check_flying(state: DroneState) -> Decision | None:
 def check_mission_time(
     state: DroneState, limits: SafetyConfig, extra_s: float = 0.0
 ) -> Decision | None:
+    """Refuse once the mission time limit is reached, or would be by `extra_s`."""
     limit = limits.max_mission_time_s
     if state.sim_time_s >= limit:
         return _refuse(
@@ -77,6 +79,7 @@ def check_mission_time(
 
 
 def check_battery_reserve(state: DroneState, limits: SafetyConfig) -> Decision | None:
+    """Refuse new moves below the battery reserve (landing stays allowed)."""
     reserve = limits.battery.reserve_pct
     if state.battery_pct < reserve:
         return _refuse(
@@ -88,6 +91,7 @@ def check_battery_reserve(state: DroneState, limits: SafetyConfig) -> Decision |
 
 
 def check_takeoff_battery(state: DroneState, limits: SafetyConfig) -> Decision | None:
+    """Refuse takeoff below the takeoff battery threshold."""
     needed = limits.battery.min_takeoff_pct
     if state.battery_pct < needed:
         return _refuse(
@@ -99,6 +103,7 @@ def check_takeoff_battery(state: DroneState, limits: SafetyConfig) -> Decision |
 
 
 def check_speed(speed_mps: float | None, limits: SafetyConfig) -> Decision | None:
+    """Refuse a requested speed above the limit (None: backend default, allowed)."""
     limit = limits.max_horizontal_speed_mps
     if speed_mps is not None and speed_mps > limit:
         return _refuse(
@@ -110,10 +115,12 @@ def check_speed(speed_mps: float | None, limits: SafetyConfig) -> Decision | Non
 
 
 def suggest_goto(target_m: Vec3) -> str:
+    """The goto call that flies to `target_m`, for refusal messages."""
     return "goto(x_m={:.2f}, y_m={:.2f}, z_m={:.2f})".format(*target_m)
 
 
 def suggest_takeoff(target_m: Vec3) -> str:
+    """The takeoff call that climbs to `target_m`'s altitude."""
     return f"takeoff(altitude_m={target_m[2]:.2f})"
 
 
@@ -178,6 +185,7 @@ def _position_problem(target_m: Vec3, limits: SafetyConfig) -> tuple[str, str] |
 
 
 def validate_takeoff(state: DroneState, altitude_m: float, limits: SafetyConfig) -> Decision:
+    """Decision for takeoff(altitude_m): mission time, battery, altitude band."""
     x, y, _ = state.position_m
     return _first_refusal(
         [
@@ -191,6 +199,7 @@ def validate_takeoff(state: DroneState, altitude_m: float, limits: SafetyConfig)
 def validate_goto(
     state: DroneState, target_m: Vec3, speed_mps: float | None, limits: SafetyConfig
 ) -> Decision:
+    """Decision for a straight move to `target_m`: flying, time, battery, speed, limits."""
     return _first_refusal(
         [
             lambda: check_flying(state),
@@ -203,6 +212,7 @@ def validate_goto(
 
 
 def validate_hover(state: DroneState, seconds: float, limits: SafetyConfig) -> Decision:
+    """Decision for hover(seconds): flying, time left, battery reserve."""
     return _first_refusal(
         [
             lambda: check_flying(state),

@@ -21,10 +21,12 @@ class Rect:
     y_max: float
 
     def contains(self, x: float, y: float) -> bool:
+        """True if the point (x, y), in metres, lies inside the rectangle."""
         return self.x_min <= x <= self.x_max and self.y_min <= y <= self.y_max
 
     @property
     def size(self) -> tuple[float, float]:
+        """(width along x, depth along y) in metres."""
         return self.x_max - self.x_min, self.y_max - self.y_min
 
 

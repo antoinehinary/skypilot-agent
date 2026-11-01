@@ -46,6 +46,7 @@ def succeeded(row: Row) -> bool:
 
 
 def failure_reason(row: Row) -> str:
+    """Failed checks of a row, plus `unfinished` if the agent did not finish."""
     reasons = [c for c in row["failed_checks"].split(";") if c]
     if row["run_state"] != "success" and "unfinished" not in reasons:
         reasons.append("unfinished")
@@ -113,6 +114,7 @@ def mission_table(runs: dict[str, list[Row]]) -> str:
 
 
 def results_markdown(runs: dict[str, list[Row]]) -> str:
+    """Comparison table, per-mission grid and method note, as markdown."""
     n = max(len(rows) for rows in runs.values())
     tolerance = REPORT_POSITION_TOLERANCE_M
     details = (
@@ -141,6 +143,7 @@ def update_readme(markdown: str, readme: Path = README) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entry point: print the tables, optionally rewrite the README section."""
     parser = argparse.ArgumentParser(description="Summarise evaluation runs.")
     parser.add_argument("--update-readme", action="store_true")
     parser.add_argument("--include-reference", action="store_true")

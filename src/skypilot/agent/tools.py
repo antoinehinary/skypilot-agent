@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, override
 
 from smolagents import Tool
 
@@ -26,6 +26,7 @@ class PositionalArgsTool(Tool):
         self.is_initialized = True
         self._tool = tool
 
+    @override
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         names = list(self.inputs)
         if len(args) > len(names):

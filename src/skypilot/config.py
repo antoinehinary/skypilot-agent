@@ -21,6 +21,8 @@ class _Model(BaseModel):
 
 
 class MotionConfig(_Model):
+    """Move tolerances, speeds and timeouts (sim.yaml `motion`)."""
+
     position_tolerance_m: PositiveFloat
     default_speed_mps: PositiveFloat
     takeoff_speed_mps: PositiveFloat
@@ -30,12 +32,16 @@ class MotionConfig(_Model):
 
 
 class BatteryConfig(_Model):
+    """Simulated battery drain model (sim.yaml `battery`)."""
+
     initial_pct: PositiveFloat
     hover_drain_pct_per_s: float
     speed_drain_pct_per_mps: float
 
 
 class GuiConfig(_Model):
+    """GUI pacing and orbit camera (sim.yaml `gui`)."""
+
     realtime: bool
     camera_distance_m: PositiveFloat
     camera_yaw_deg: float
@@ -43,6 +49,8 @@ class GuiConfig(_Model):
 
 
 class CameraConfig(_Model):
+    """Downward onboard camera (sim.yaml `camera`)."""
+
     width_px: PositiveInt
     height_px: PositiveInt
     vertical_fov_deg: PositiveFloat
@@ -52,6 +60,8 @@ class CameraConfig(_Model):
 
 
 class SimConfig(_Model):
+    """Simulator parameters (config/sim.yaml)."""
+
     physics_hz: PositiveInt
     control_hz: PositiveInt
     motion: MotionConfig
@@ -70,11 +80,15 @@ class SimConfig(_Model):
 
 
 class OllamaConfig(_Model):
+    """Options sent only to Ollama models (agent.yaml `ollama`)."""
+
     num_ctx: PositiveInt
     think: bool
 
 
 class AgentConfig(_Model):
+    """Agent and LLM parameters (config/agent.yaml)."""
+
     model_id: str
     api_base: str
     request_timeout_s: PositiveFloat
@@ -87,6 +101,8 @@ class AgentConfig(_Model):
 
 
 class WorldObject(_Model):
+    """One box in the scene: name, colour, ground position (m), side (m)."""
+
     name: str
     colour: str
     position_m: tuple[float, float]
@@ -94,6 +110,8 @@ class WorldObject(_Model):
 
 
 class WorldConfig(_Model):
+    """Scene objects and their rendering colours (config/world.yaml)."""
+
     colours: dict[str, tuple[float, float, float, float]]
     objects: list[WorldObject]
 
@@ -109,11 +127,15 @@ class WorldConfig(_Model):
 
 
 class HsvRange(_Model):
+    """Inclusive OpenCV HSV bounds (hue 0-179, saturation and value 0-255)."""
+
     low: tuple[int, int, int]
     high: tuple[int, int, int]
 
 
 class DescribeConfig(_Model):
+    """Vision-language model used by describe_scene (vision.yaml `describe`)."""
+
     model_id: str
     api_base: str
     request_timeout_s: PositiveFloat
@@ -121,6 +143,8 @@ class DescribeConfig(_Model):
 
 
 class VisionConfig(_Model):
+    """Colour thresholds and scene-description model (config/vision.yaml)."""
+
     colours: dict[str, list[HsvRange]]
     min_area_px: PositiveInt
     describe: DescribeConfig
@@ -150,16 +174,22 @@ class Interval(_Model):
 
 
 class GeofenceConfig(_Model):
+    """Allowed x and y ranges, metres (safety.yaml `geofence`)."""
+
     x_m: Interval
     y_m: Interval
 
 
 class SafetyBatteryConfig(_Model):
+    """Battery thresholds, percent (safety.yaml `battery`)."""
+
     min_takeoff_pct: PositiveFloat
     reserve_pct: PositiveFloat
 
 
 class SafetyConfig(_Model):
+    """Safety limits enforced by SafeDrone (config/safety.yaml)."""
+
     geofence: GeofenceConfig
     altitude_m: Interval
     max_horizontal_speed_mps: PositiveFloat

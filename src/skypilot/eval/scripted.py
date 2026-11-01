@@ -5,7 +5,7 @@ Used to run mission reference solutions and to test the agent stack deterministi
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, override
 
 from smolagents import Model
 from smolagents.models import ChatMessage, MessageRole
@@ -25,6 +25,7 @@ class ScriptedModel(Model):
         self.replies = list(replies)
         self.prompts: list[str] = []
 
+    @override
     def generate(self, messages: list, stop_sequences: Any = None, **kwargs: Any) -> ChatMessage:
         self.prompts.append(str(messages))
         reply = self.replies.pop(0) if self.replies else "Thought: out of script.\n"

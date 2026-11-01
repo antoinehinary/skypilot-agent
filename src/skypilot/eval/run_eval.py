@@ -180,6 +180,7 @@ def write_results(records: list[MissionRecord], out_dir: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entry point: run the selected missions and write results; 0 if all pass."""
     parser = argparse.ArgumentParser(description="Run the mission suite and score it.")
     parser.add_argument("--model", help="LiteLLM model id (default: config/agent.yaml)")
     parser.add_argument("--think", action="store_true", help="enable Ollama thinking")

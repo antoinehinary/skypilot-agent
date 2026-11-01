@@ -16,6 +16,7 @@ import math
 import time
 import warnings
 from collections.abc import Callable
+from typing import override
 
 import numpy as np
 import pybullet as p
@@ -111,6 +112,7 @@ class SimBackend(DroneBackend):
 
     # ------------------------------------------------------------------ commands
 
+    @override
     def takeoff(self, altitude_m: float) -> MoveResult:
         if self._flying:
             return self._fail("already flying")
@@ -120,6 +122,7 @@ class SimBackend(DroneBackend):
         target = np.array([start[0], start[1], altitude_m])
         return self._move(start, target, self.config.motion.takeoff_speed_mps, "took off to")
 
+    @override
     def goto(
         self, x_m: float, y_m: float, z_m: float, speed_mps: float | None = None
     ) -> MoveResult:
@@ -129,6 +132,7 @@ class SimBackend(DroneBackend):
             speed_mps = self.config.motion.default_speed_mps
         return self._move(self._setpoint, np.array([x_m, y_m, z_m]), speed_mps, "reached")
 
+    @override
     def hover(self, seconds: float) -> MoveResult:
         if not self._flying:
             return self._fail("not flying: take off first")
@@ -141,6 +145,7 @@ class SimBackend(DroneBackend):
             message += f", drifted {error:.2f} m from {_fmt(self._setpoint)}"
         return self._result(success, t_start, message)
 
+    @override
     def land(self) -> MoveResult:
         if not self._flying:
             return self._fail("already landed")
@@ -165,6 +170,7 @@ class SimBackend(DroneBackend):
             return self._result(True, t_start, f"landed at {_fmt(self._obs[_POS])}")
         return self._result(False, t_start, "landing timed out, motors stopped in the air")
 
+    @override
     def get_state(self) -> DroneState:
         return DroneState(
             position_m=tuple(float(v) for v in self._obs[_POS]),
@@ -176,6 +182,7 @@ class SimBackend(DroneBackend):
             setpoint_m=tuple(float(v) for v in self._setpoint) if self._flying else None,
         )
 
+    @override
     def get_camera_image(self) -> CameraFrame:
         cam = self.config.camera
         lens_m = self._obs[_POS] - np.array([0.0, 0.0, cam.mount_offset_m])
@@ -192,6 +199,7 @@ class SimBackend(DroneBackend):
         intrinsics = geometry.intrinsics_from_fov(cam.width_px, cam.height_px, cam.vertical_fov_deg)
         return CameraFrame(image, intrinsics, pose, self._sim_time())
 
+    @override
     def close(self) -> None:
         if not self._closed:
             self._env.close()

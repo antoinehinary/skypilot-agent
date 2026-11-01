@@ -43,6 +43,8 @@ class Outcome:
 
 @dataclass(frozen=True)
 class CheckResult:
+    """Outcome of one check: its name, pass/fail, and a human-readable detail."""
+
     check: str
     passed: bool
     detail: str

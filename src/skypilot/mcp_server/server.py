@@ -191,6 +191,7 @@ def build_server(
 
 
 def main(argv: list[str] | None = None) -> None:
+    """Start the drone MCP server over stdio, with the simulator behind SafeDrone."""
     parser = argparse.ArgumentParser(description="SkyPilot drone MCP server (stdio).")
     parser.add_argument("--gui", action="store_true", help="show the PyBullet GUI")
     parser.add_argument(

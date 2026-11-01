@@ -139,6 +139,7 @@ def run_mission(
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entry point: fly one mission, print the report and the verified state."""
     parser = argparse.ArgumentParser(description="Fly a plain-language drone mission.")
     parser.add_argument("mission", help='e.g. "take off to 1 m, fly to (2, 2, 1), land"')
     parser.add_argument("--gui", action="store_true", help="show the PyBullet GUI")
