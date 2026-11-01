@@ -6,4 +6,4 @@ import os
 # The project runs locally and offline, so use the copy bundled with LiteLLM (overridable).
 os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "skypilot"
-version = "0.1.0"
+dynamic = ["version"]
 description = "An AI agent that flies a simulated Crazyflie from plain-language missions, through MCP tools and a safety layer."
 readme = "README.md"
 license = "MIT"
@@ -40,6 +40,9 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.6",
 ]
+
+[tool.setuptools.dynamic]
+version = { attr = "skypilot.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
