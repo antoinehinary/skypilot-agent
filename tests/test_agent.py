@@ -23,15 +23,15 @@ from skypilot.mcp_server.server import parse_state
 
 
 def test_model_id_can_be_overridden_by_environment(monkeypatch) -> None:
-    monkeypatch.setenv("MODEL_ID", "openai/gpt-4o-mini")
+    monkeypatch.setenv("MODEL_ID", "example/remote-model")
 
-    assert load_agent_config().model_id == "openai/gpt-4o-mini"
+    assert load_agent_config().model_id == "example/remote-model"
 
 
 def test_ollama_options_only_sent_to_ollama_models() -> None:
     config = load_agent_config()
     ollama = build_model(config)
-    cloud = build_model(config.model_copy(update={"model_id": "openai/gpt-4o-mini"}))
+    cloud = build_model(config.model_copy(update={"model_id": "example/remote-model"}))
 
     assert ollama.kwargs["num_ctx"] == config.ollama.num_ctx
     assert ollama.kwargs["think"] is False

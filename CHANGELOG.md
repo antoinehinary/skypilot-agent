@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 (2026-11-01)
+
+- Documentation clean-up: README limitations section and `.env.example` cover the local setup only.
+
 ## 1.0.0 (2026-11-01)
 
 First release: an LLM agent that flies a simulated Crazyflie from plain-language missions, through

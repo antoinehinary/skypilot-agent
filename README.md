@@ -263,17 +263,17 @@ src/skypilot/
 tests/           unit tests and headless simulator tests
 ```
 
-## Known limitations and next steps
+## Known limitations
 
 - **Simulation only.** The `DroneBackend` interface and calibrated `CameraFrame` are designed so a
-  Crazyflie backend over `cflib` (with the AI-deck camera) could replace the simulator; it is not
+  Crazyflie backend over `cflib` (with a camera deck) could replace the simulator; it is not
   implemented.
 - **Small evaluation.** 10 missions with one run per configuration; differences of one or two
-  missions are not significant. Next: grow the suite and run repeats.
+  missions are not significant.
 - **Step budget on searches.** Searching the whole area costs most of the 12-step budget when
   the model splits each search step in two.
 - **Text tool results.** Tools return strings; `qwen2.5vl:7b` tried to index them like
-  dictionaries. Structured (JSON) results are a possible next step.
+  dictionaries.
 - **Partly visible objects.** A box cut by the image border is localised from its visible part
   only, which biases its position and size until the agent flies above it.
 - **Seeded but not fully reproducible.** Temperature 0 and a fixed seed make runs repeatable
