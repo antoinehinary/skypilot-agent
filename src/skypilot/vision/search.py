@@ -45,31 +45,26 @@ def search_positions(
     footprint_size: tuple[float, float],
     current_xy: tuple[float, float],
     count: int = 2,
+    spacing_m: float = 0.5,
 ) -> list[tuple[float, float]]:
-    """Up to `count` unsearched positions inside `area`, nearest to `current_xy` first.
+    """Up to `count` positions to fly to so the camera sees ground not yet seen.
 
-    `area` is tiled with cells the size of one camera footprint; a cell is unsearched if its
-    centre lies in none of the `seen` footprints. Centres are kept inside `area`.
+    `area` is sampled every `spacing_m`; a sample is unseen if it lies in none of the `seen`
+    footprints. Greedy cover: repeatedly take the unseen sample nearest to the previous
+    position, centre a view of `footprint_size` on it, and drop the samples that view covers.
+    An empty list means the whole area has been seen.
     """
-    size_x, size_y = footprint_size
-    nx, ny = (
-        max(1, math.ceil((area.x_max - area.x_min) / size_x)),
-        max(1, math.ceil((area.y_max - area.y_min) / size_y)),
-    )
-    xs = (
-        np.linspace(area.x_min + size_x / 2, area.x_max - size_x / 2, nx)
-        if nx > 1
-        else [(area.x_min + area.x_max) / 2]
-    )
-    ys = (
-        np.linspace(area.y_min + size_y / 2, area.y_max - size_y / 2, ny)
-        if ny > 1
-        else [(area.y_min + area.y_max) / 2]
-    )
-    candidates = [
-        (round(float(x), 2), round(float(y), 2))
-        for x in xs
-        for y in ys
-        if not any(r.contains(x, y) for r in seen)
+    xs = np.arange(area.x_min, area.x_max + 1e-9, spacing_m)
+    ys = np.arange(area.y_min, area.y_max + 1e-9, spacing_m)
+    unseen = [
+        (float(x), float(y)) for x in xs for y in ys if not any(r.contains(x, y) for r in seen)
     ]
-    return sorted(candidates, key=lambda c: math.dist(c, current_xy))[:count]
+    half_x, half_y = footprint_size[0] / 2, footprint_size[1] / 2
+    positions: list[tuple[float, float]] = []
+    here = current_xy
+    while unseen and len(positions) < count:
+        cx, cy = min(unseen, key=lambda p: math.dist(p, here))
+        positions.append((round(cx, 2), round(cy, 2)))
+        unseen = [(x, y) for x, y in unseen if abs(x - cx) > half_x or abs(y - cy) > half_y]
+        here = (cx, cy)
+    return positions

@@ -54,3 +54,17 @@ def test_a_far_corner_object_is_covered_by_some_search_position() -> None:
 
 def test_everything_seen_leaves_nothing_to_search() -> None:
     assert search_positions([AREA], AREA, (2.0, 2.0), current_xy=(0.0, 0.0)) == []
+
+
+def test_area_is_not_covered_while_its_corners_are_unseen() -> None:
+    # Regression: from 3 m above the pad the view (3.5 x 4.6 m) contains the centres of a
+    # footprint-sized tiling of the 6 x 6 m area, which was wrongly reported as fully covered
+    # while the green box at (2.0, 1.5) was out of view.
+    seen = [frame_footprint(_frame(0.0, 0.0, 2.5)), frame_footprint(_frame(0.0, 0.0, 3.0))]
+    assert not any(r.contains(2.0, 1.5) for r in seen)
+
+    positions = search_positions(seen, AREA, seen[1].size, current_xy=(0.0, 0.0), count=10)
+
+    assert positions, "area wrongly reported as fully covered"
+    views = [frame_footprint(_frame(x, y, 3.0)) for x, y in positions]
+    assert any(v.contains(2.0, 1.5) for v in views)
