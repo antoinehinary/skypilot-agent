@@ -34,6 +34,8 @@ def build_model(config: AgentConfig) -> LiteLLMModel:
     kwargs: dict = {"timeout": config.request_timeout_s, "temperature": config.temperature}
     if config.seed is not None:
         kwargs["seed"] = config.seed
+    if config.max_tokens is not None:
+        kwargs["max_tokens"] = config.max_tokens
     if config.model_id.startswith("ollama"):
         kwargs |= {"num_ctx": config.ollama.num_ctx, "think": config.ollama.think}
         api_base = config.api_base

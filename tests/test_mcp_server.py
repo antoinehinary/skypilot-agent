@@ -52,8 +52,8 @@ def test_find_objects_reports_world_position_and_refine_hint(server, fake_drone)
     x, y, size = map(float, match.groups())
     assert (x, y) == pytest.approx((0.6, -0.4), abs=0.015)  # painted square is pixel-quantised
     assert size == pytest.approx(0.3, abs=0.03)
-    assert "Next: fly above #1 with goto(x_m=0.6" in text and ", z_m=2.00)" in text
-    assert "find_objects again there to refine" in text
+    assert "Next, fly above #1 and look again to refine, in one code block: goto(x_m=0.6" in text
+    assert ', z_m=2.00); find_objects(colour="red")' in text
 
 
 def test_find_objects_not_found_explains_coverage(server) -> None:
@@ -209,13 +209,13 @@ def limited_server(fake_drone, tmp_path):
     return build_server(fake_drone, image_dir=tmp_path / "images", limits=load_safety_config())
 
 
-def test_not_found_suggests_climbing_and_unsearched_positions(limited_server) -> None:
+def test_not_found_suggests_search_steps_at_the_ceiling(limited_server) -> None:
     _call(limited_server, "takeoff", altitude_m=2.0)
 
     text = _call(limited_server, "find_objects", colour="red")
 
-    assert "Climbing (up to z=3.00 m) shows more ground." in text
-    assert "Unsearched areas, nearest first: goto(x_m=" in text and "z_m=2.00)" in text
+    assert "Search next, nearest first, one code block each: goto(x_m=" in text
+    assert ', z_m=3.00); find_objects(colour="red")' in text
 
 
 def test_not_found_at_the_ceiling_does_not_suggest_climbing(limited_server) -> None:

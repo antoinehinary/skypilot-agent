@@ -78,6 +78,7 @@ class AgentConfig(_Model):
     model_id: str
     api_base: str
     request_timeout_s: PositiveFloat
+    max_tokens: PositiveInt | None
     temperature: float
     seed: int | None
     max_steps: PositiveInt

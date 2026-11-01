@@ -46,8 +46,13 @@ def coverage(frame: CameraFrame) -> str:
     )
 
 
+def _look(x: float, y: float, z: float, colour: str) -> str:
+    """One step that moves and looks: a single movement, then a read-only camera call."""
+    return f'goto(x_m={x:.2f}, y_m={y:.2f}, z_m={z:.2f}); find_objects(colour="{colour}")'
+
+
 def format_detections(colour: str, detections: list[detect.Detection], altitude_m: float) -> str:
-    """Tool result when objects are found: positions, then the call that flies above #1.
+    """Tool result when objects are found: positions, then the step that flies above #1.
 
     Like safety refusals, the result ends with a ready-to-use call: small models copy a
     concrete call far more reliably than they work out the next move themselves.
@@ -60,9 +65,9 @@ def format_detections(colour: str, detections: list[detect.Detection], altitude_
     )
     x, y = detections[0].position_m
     return (
-        f"Found {len(detections)} {colour} object{plural}: {items}. Next: fly above #1 with "
-        f"goto(x_m={x:.2f}, y_m={y:.2f}, z_m={altitude_m:.2f}), then call find_objects again "
-        f"there to refine, since {ACCURACY_NOTE}."
+        f"Found {len(detections)} {colour} object{plural}: {items}. Next, fly above #1 and look "
+        f"again to refine, in one code block: {_look(x, y, altitude_m, colour)} "
+        f"({ACCURACY_NOTE})."
     )
 
 
@@ -73,21 +78,25 @@ def format_not_found(
     search: SearchArea | None,
     seen: list[Rect],
 ) -> str:
-    """Tool result when nothing is found: what was covered and where to look next."""
+    """Tool result when nothing is found: what was covered and where to look next.
+
+    Search views are planned at the altitude ceiling, where each one covers the most ground.
+    """
     text = f"No {colour} object in view: {coverage(frame)}."
     if search is None:
         return f"{text} Climb to see more ground, or move to search another area."
-    if altitude_m < search.max_altitude_m - 0.1:
-        text += f" Climbing (up to z={search.max_altitude_m:.2f} m) shows more ground."
-    current = frame_footprint(frame)
+    camera_height = float(frame.cam_to_world[2, 3])
+    lens_offset = altitude_m - camera_height  # lens below the drone's reference point
+    scale = (search.max_altitude_m - lens_offset) / camera_height
+    width, depth = frame_footprint(frame).size
     x, y = frame.cam_to_world[:2, 3]
-    positions = search_positions(seen, search.area, current.size, (float(x), float(y)))
+    positions = search_positions(
+        seen, search.area, (width * scale, depth * scale), (float(x), float(y))
+    )
     if not positions:
         return f"{text} The whole search area has been covered: there is no {colour} object."
-    calls = " or ".join(
-        f"goto(x_m={px:.2f}, y_m={py:.2f}, z_m={altitude_m:.2f})" for px, py in positions
-    )
-    return f"{text} Unsearched areas, nearest first: {calls}, then call find_objects again."
+    steps = " or ".join(_look(px, py, search.max_altitude_m, colour) for px, py in positions)
+    return f"{text} Search next, nearest first, one code block each: {steps}."
 
 
 def register_vision_tools(

@@ -11,7 +11,8 @@ Rules:
 1. Plan first. In your first step, write a short numbered plan of the mission before calling any
    tool.
 2. Call at most one movement tool (takeoff, goto, move_relative, hover, land) per code block, and
-   print its result. Read the result before deciding the next step.
+   print its result. Read the result before deciding the next step. A movement may be followed
+   by find_objects in the same block (it does not move the drone): one step to move and look.
 3. Every movement tool returns OK, FAILED or REFUSED followed by the drone's new position.
    REFUSED means a safety rule rejected the command and the drone did not move: never retry it.
    Read the reason, follow its suggestion (e.g. choose a value within the stated limits), and
@@ -29,10 +30,11 @@ Finding objects with the downward camera:
 - find_objects(colour) returns the world (x, y) of objects of that colour in view. It is the only
   source of object positions: never guess where an object is.
 - Search from about 2.5 m (higher altitude covers more ground). If nothing is found, the result
-  lists unsearched areas as goto calls: fly to the first one and call find_objects again. If it
-  says the whole search area has been covered, the object is not there: report it and land.
-- Once found, use the goto call the result suggests to fly above the object, call find_objects
-  again from there to refine the estimate, then move to the refined position.
+  lists the next search steps: run the first one exactly as written (it moves and looks in one
+  code block). If it says the whole search area has been covered, the object is not there:
+  report it and land.
+- Once found, run the suggested step to fly above the object and look again, then move to the
+  refined position.
 - To hover above an object, keep a safe height above it (for example 1 m above the ground). To
   land on an object, fly above it, then call land(): it touches down on top of the object.
 - describe_scene(question) is slow and approximate: use it only for questions find_objects cannot

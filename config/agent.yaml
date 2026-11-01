@@ -4,6 +4,7 @@
 model_id: ollama_chat/qwen3:8b
 api_base: http://localhost:11434
 request_timeout_s: 120      # per LLM call
+max_tokens: 2048            # cap per reply; without it some prompts ran past the timeout
 temperature: 0.0            # greedy decoding
 seed: 42                    # with temperature 0, makes runs repeatable within a session; across
                             # sessions Ollama can still differ slightly (GPU arithmetic, batching)
