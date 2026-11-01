@@ -33,7 +33,7 @@ Requirements: macOS or Linux, [conda](https://github.com/conda-forge/miniforge),
 git clone https://github.com/antoinehinary/skypilot-agent.git && cd skypilot-agent
 conda create -p ./.venv python=3.12 -y && conda activate ./.venv
 git clone https://github.com/learnsyslab/gym-pybullet-drones.git external/gym-pybullet-drones && git -C external/gym-pybullet-drones checkout 15c426c
-CFLAGS="-Dfdopen=fdopen" pip install -e ".[sim,agent,dev]" && pip install -e external/gym-pybullet-drones --no-deps
+CFLAGS="-Dfdopen=fdopen" python -m pip install -e ".[sim,agent,dev]" && python -m pip install -e external/gym-pybullet-drones --no-deps
 ollama pull qwen3:8b && python -m skypilot.agent.run_agent "take off to 1 m, fly to (2, 2, 1), land" --gui
 ```
 
@@ -51,8 +51,9 @@ python -m skypilot.agent.run_agent "find the red box and land on it" \
     --world missions/worlds/moved.yaml --record media/run.gif                 # search, and save a GIF
 ```
 
-Use `python -m pytest` rather than a bare `pytest`, so the tools run from the project
-environment even if another Python comes first on your `PATH`.
+The commands use `python -m pip` and `python -m pytest` rather than bare `pip` and `pytest` so
+they always run in the project environment, even if another Python installation comes first on
+your `PATH` (a bare `pip` could then install into the wrong Python).
 
 ## Architecture
 
