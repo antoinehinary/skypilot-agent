@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import logging
 import re
+from dataclasses import replace
 from pathlib import Path
 from typing import Annotated
 
@@ -22,6 +23,7 @@ from pydantic import Field
 
 from skypilot.config import (
     CONFIG_DIR,
+    SafetyConfig,
     VisionConfig,
     load_safety_config,
     load_sim_config,
@@ -29,8 +31,9 @@ from skypilot.config import (
     load_world_config,
 )
 from skypilot.drone.backend import DroneBackend, DroneState, MoveResult
-from skypilot.mcp_server.vision_tools import register_vision_tools
+from skypilot.mcp_server.vision_tools import SearchArea, register_vision_tools
 from skypilot.safety.guard import SafeDrone
+from skypilot.vision.search import Rect
 
 logger = logging.getLogger(__name__)
 
@@ -100,14 +103,21 @@ def build_server(
     drone: DroneBackend,
     vision: VisionConfig | None = None,
     image_dir: Path = DEFAULT_IMAGE_DIR,
+    limits: SafetyConfig | None = None,
 ) -> FastMCP:
     """Create the MCP server with one tool per drone action, bound to `drone`.
 
     `vision` (default: config/vision.yaml) configures the camera tools; captured images
-    are saved under `image_dir`.
+    are saved under `image_dir`. With `limits`, find_objects suggests unsearched positions
+    inside the geofence and below the altitude ceiling.
     """
     mcp = FastMCP(SERVER_NAME, instructions=INSTRUCTIONS)
-    register_vision_tools(mcp, drone, vision or load_vision_config(), image_dir)
+    search = None
+    if limits is not None:
+        fence = limits.geofence
+        area = Rect(fence.x_m.low, fence.x_m.high, fence.y_m.low, fence.y_m.high)
+        search = SearchArea(area, limits.altitude_m.high)
+    register_vision_tools(mcp, drone, vision or load_vision_config(), image_dir, search)
 
     def report(result: MoveResult) -> str:
         text = format_result(result, drone.get_state())
@@ -120,16 +130,24 @@ def build_server(
     ) -> str:
         """Take off vertically from the ground and hover at `altitude_m` metres.
 
-        Fails if the drone is already flying.
+        Only from the ground: to change altitude while flying, use goto.
         """
-        return report(drone.takeoff(altitude_m))
+        result = drone.takeoff(altitude_m)
+        state = drone.get_state()
+        if not result.success and not result.refused and state.is_flying:
+            x, y, _ = state.setpoint_m or state.position_m
+            call = f"goto(x_m={x:.2f}, y_m={y:.2f}, z_m={altitude_m:.2f})"
+            hint = f"to change altitude while flying use {call}"
+            result = replace(result, message=f"{result.message}; {hint}")
+        return report(result)
 
     @mcp.tool()
     def goto(x_m: Metres, y_m: Metres, z_m: Metres) -> str:
         """Fly in a straight line to the absolute position (x_m, y_m, z_m), in metres.
 
         Coordinates are in the world frame (x forward, y left, z up, origin at the take-off pad),
-        not relative to the drone. Fails if the drone is not flying.
+        not relative to the drone. Fails if the drone is not flying. Also changes altitude
+        (keep x, y, change z). To touch down on the ground or on an object, use land instead.
         """
         return report(drone.goto(x_m, y_m, z_m))
 
@@ -150,7 +168,11 @@ def build_server(
 
     @mcp.tool()
     def land() -> str:
-        """Descend vertically at the current x, y, touch down and stop the motors."""
+        """Descend vertically at the current x, y and touch down on whatever is below.
+
+        Lands on the ground or on top of an object (e.g. a box): to land on an object, fly
+        above it first, then call land. Stops the motors.
+        """
         return report(drone.land())
 
     @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True))
@@ -194,13 +216,14 @@ def main(argv: list[str] | None = None) -> None:
 
     # The simulator is only ever reachable through the safety guard: there is no bypass flag.
     with SimBackend(sim_config, gui=args.gui, world=world) as sim:
+        limits = load_safety_config()
         drone = SafeDrone(
             sim,
-            load_safety_config(),
+            limits,
             default_speed_mps=sim.config.motion.default_speed_mps,
             log_path=args.safety_log,
         )
-        build_server(drone).run(transport="stdio")
+        build_server(drone, limits=limits).run(transport="stdio")
 
 
 if __name__ == "__main__":

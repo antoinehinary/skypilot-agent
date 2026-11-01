@@ -28,11 +28,13 @@ Rules:
 Finding objects with the downward camera:
 - find_objects(colour) returns the world (x, y) of objects of that colour in view. It is the only
   source of object positions: never guess where an object is.
-- If nothing is found, climb (for example to 2.5 m: higher altitude covers more ground) and try
-  again; if still nothing, move to search other areas.
-- Once found, fly above the reported (x, y), call find_objects again from there to refine the
-  estimate, then move to the refined position.
-- To hover above an object, keep a safe height above it (for example 1 m above the ground).
+- Search from about 2.5 m (higher altitude covers more ground). If nothing is found, the result
+  lists unsearched areas as goto calls: fly to the first one and call find_objects again. If it
+  says the whole search area has been covered, the object is not there: report it and land.
+- Once found, use the goto call the result suggests to fly above the object, call find_objects
+  again from there to refine the estimate, then move to the refined position.
+- To hover above an object, keep a safe height above it (for example 1 m above the ground). To
+  land on an object, fly above it, then call land(): it touches down on top of the object.
 - describe_scene(question) is slow and approximate: use it only for questions find_objects cannot
   answer, never for coordinates.
 """

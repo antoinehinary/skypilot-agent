@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
+from skypilot.config import Interval, load_safety_config
 from skypilot.drone.backend import DroneState, MoveResult
 from skypilot.mcp_server.server import build_server, format_result, format_state, parse_state
 from skypilot.vision import describe
@@ -51,7 +52,8 @@ def test_find_objects_reports_world_position_and_refine_hint(server, fake_drone)
     x, y, size = map(float, match.groups())
     assert (x, y) == pytest.approx((0.6, -0.4), abs=0.015)  # painted square is pixel-quantised
     assert size == pytest.approx(0.3, abs=0.03)
-    assert "find_objects again to refine" in text
+    assert "Next: fly above #1 with goto(x_m=0.6" in text and ", z_m=2.00)" in text
+    assert "find_objects again there to refine" in text
 
 
 def test_find_objects_not_found_explains_coverage(server) -> None:
@@ -200,3 +202,53 @@ def test_parse_state_reads_landed_status() -> None:
 def test_parse_state_rejects_other_text() -> None:
     with pytest.raises(ValueError, match="no drone state"):
         parse_state("Mission complete.")
+
+
+@pytest.fixture
+def limited_server(fake_drone, tmp_path):
+    return build_server(fake_drone, image_dir=tmp_path / "images", limits=load_safety_config())
+
+
+def test_not_found_suggests_climbing_and_unsearched_positions(limited_server) -> None:
+    _call(limited_server, "takeoff", altitude_m=2.0)
+
+    text = _call(limited_server, "find_objects", colour="red")
+
+    assert "Climbing (up to z=3.00 m) shows more ground." in text
+    assert "Unsearched areas, nearest first: goto(x_m=" in text and "z_m=2.00)" in text
+
+
+def test_not_found_at_the_ceiling_does_not_suggest_climbing(limited_server) -> None:
+    _call(limited_server, "takeoff", altitude_m=3.0)
+
+    assert "Climbing" not in _call(limited_server, "find_objects", colour="red")
+
+
+def test_whole_area_covered_concludes_the_object_is_absent(fake_drone, tmp_path) -> None:
+    limits = load_safety_config()
+    small = limits.geofence.model_copy(
+        update={"x_m": Interval(low=-1, high=1), "y_m": Interval(low=-1, high=1)}
+    )
+    server = build_server(
+        fake_drone, image_dir=tmp_path, limits=limits.model_copy(update={"geofence": small})
+    )
+    _call(server, "takeoff", altitude_m=2.0)  # sees about 2.3 m x 3.1 m: the whole 2 m x 2 m area
+
+    text = _call(server, "find_objects", colour="yellow")
+
+    assert text.endswith("The whole search area has been covered: there is no yellow object.")
+
+
+def test_find_objects_on_the_ground_asks_to_take_off(limited_server) -> None:
+    assert _call(limited_server, "find_objects", colour="red").startswith(
+        "The drone is on the ground: take off first"
+    )
+
+
+def test_takeoff_while_flying_suggests_the_goto_that_changes_altitude(server) -> None:
+    _call(server, "takeoff", altitude_m=1.0)
+
+    text = _call(server, "takeoff", altitude_m=2.5)
+
+    assert text.startswith("FAILED: already flying; to change altitude while flying use ")
+    assert "goto(x_m=0.00, y_m=0.00, z_m=2.50)" in text

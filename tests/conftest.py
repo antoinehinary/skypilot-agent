@@ -32,6 +32,8 @@ class FakeBackend(DroneBackend):
         return MoveResult(True, target, elapsed, f"reached {target} in {elapsed:.1f} s")
 
     def takeoff(self, altitude_m: float) -> MoveResult:
+        if self.is_flying:  # same contract as SimBackend
+            return MoveResult(False, self.position, 0.0, "already flying")
         self.is_flying = True
         x, y, _ = self.position
         return self._fly_to((x, y, altitude_m), speed_mps=0.5)
