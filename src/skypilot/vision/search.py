@@ -49,22 +49,47 @@ def search_positions(
 ) -> list[tuple[float, float]]:
     """Up to `count` positions to fly to so the camera sees ground not yet seen.
 
-    `area` is sampled every `spacing_m`; a sample is unseen if it lies in none of the `seen`
-    footprints. Greedy cover: repeatedly take the unseen sample nearest to the previous
-    position, centre a view of `footprint_size` on it, and drop the samples that view covers.
-    An empty list means the whole area has been seen.
+    Coverage: `area` is sampled every `spacing_m`; a sample is unseen if it lies in none of
+    the `seen` footprints, and an empty result means the whole area has been seen.
+
+    Positions: `area` is tiled with the fewest views of `footprint_size` that cover it, each
+    view kept inside `area` (a view centred on the edge would waste half its ground). Tiles
+    that still contain unseen samples are returned nearest first, each one chained from the
+    previous so the list reads as a short route.
     """
     xs = np.arange(area.x_min, area.x_max + 1e-9, spacing_m)
     ys = np.arange(area.y_min, area.y_max + 1e-9, spacing_m)
     unseen = [
-        (float(x), float(y)) for x in xs for y in ys if not any(r.contains(x, y) for r in seen)
+        (float(x), float(y))
+        for x, y in ((x, y) for x in xs for y in ys)
+        if not any(r.contains(x, y) for r in seen)
     ]
     half_x, half_y = footprint_size[0] / 2, footprint_size[1] / 2
+    tiles = [
+        (round(cx, 2), round(cy, 2))
+        for cx in _tile_centres(area.x_min, area.x_max, footprint_size[0])
+        for cy in _tile_centres(area.y_min, area.y_max, footprint_size[1])
+    ]
+
+    def covers(tile: tuple[float, float], point: tuple[float, float]) -> bool:
+        return abs(point[0] - tile[0]) <= half_x and abs(point[1] - tile[1]) <= half_y
+
     positions: list[tuple[float, float]] = []
     here = current_xy
     while unseen and len(positions) < count:
-        cx, cy = min(unseen, key=lambda p: math.dist(p, here))
-        positions.append((round(cx, 2), round(cy, 2)))
-        unseen = [(x, y) for x, y in unseen if abs(x - cx) > half_x or abs(y - cy) > half_y]
-        here = (cx, cy)
+        useful = [t for t in tiles if t not in positions and any(covers(t, p) for p in unseen)]
+        if not useful:
+            break
+        tile = min(useful, key=lambda t: math.dist(t, here))
+        positions.append(tile)
+        unseen = [p for p in unseen if not covers(tile, p)]
+        here = tile
     return positions
+
+
+def _tile_centres(low: float, high: float, size: float) -> list[float]:
+    """Centres of the fewest views of width `size` covering [low, high], all inside it."""
+    n = max(1, math.ceil((high - low) / size))
+    if n == 1:
+        return [(low + high) / 2]
+    return [float(c) for c in np.linspace(low + size / 2, high - size / 2, n)]

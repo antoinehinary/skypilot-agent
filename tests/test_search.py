@@ -28,16 +28,20 @@ def test_footprint_is_centred_under_the_camera_with_the_expected_size() -> None:
     assert rect.size == pytest.approx((along, across), rel=0.01)
 
 
-def test_unsearched_positions_skip_seen_areas_and_start_nearest() -> None:
+def test_every_suggested_view_reveals_unseen_ground() -> None:
     seen = [frame_footprint(_frame(0.0, 0.0, 2.5))]
     size = seen[0].size
 
     positions = search_positions(seen, AREA, size, current_xy=(0.0, 0.0), count=3)
 
     assert positions and len(positions) <= 3
-    assert all(AREA.contains(*p) and not seen[0].contains(*p) for p in positions)
-    distances = [np.hypot(*p) for p in positions]
-    assert distances == sorted(distances)
+    for x, y in positions:
+        assert AREA.contains(x, y)
+        view = frame_footprint(_frame(x, y, 2.5))
+        grid = np.linspace(-3.0, 3.0, 25)
+        assert any(
+            view.contains(gx, gy) and not seen[0].contains(gx, gy) for gx in grid for gy in grid
+        )
 
 
 def test_a_far_corner_object_is_covered_by_some_search_position() -> None:
@@ -68,3 +72,28 @@ def test_area_is_not_covered_while_its_corners_are_unseen() -> None:
     assert positions, "area wrongly reported as fully covered"
     views = [frame_footprint(_frame(x, y, 3.0)) for x, y in positions]
     assert any(v.contains(2.0, 1.5) for v in views)
+
+
+def test_search_views_stay_inside_the_area() -> None:
+    seen = [frame_footprint(_frame(0.0, 0.0, 2.5))]
+    size = frame_footprint(_frame(0.0, 0.0, 3.0)).size  # views planned at the 3 m ceiling
+
+    positions = search_positions(seen, AREA, size, current_xy=(0.0, 0.0), count=10)
+
+    for x, y in positions:
+        view = frame_footprint(_frame(x, y, 3.0))
+        # positions are rounded to the centimetre
+        assert AREA.x_min - 0.01 <= view.x_min and view.x_max <= AREA.x_max + 0.01
+        assert AREA.y_min - 0.01 <= view.y_min and view.y_max <= AREA.y_max + 0.01
+
+
+def test_whole_area_takes_few_views_at_the_ceiling() -> None:
+    # 6 x 6 m area, 3.5 x 4.6 m view at 3 m: covering it should take about four views
+    seen = [frame_footprint(_frame(0.0, 0.0, 2.5))]
+    size = frame_footprint(_frame(0.0, 0.0, 3.0)).size
+
+    positions = search_positions(seen, AREA, size, current_xy=(0.0, 0.0), count=20)
+    seen += [frame_footprint(_frame(x, y, 3.0)) for x, y in positions]
+
+    assert len(positions) <= 5
+    assert search_positions(seen, AREA, size, current_xy=(0.0, 0.0)) == []
