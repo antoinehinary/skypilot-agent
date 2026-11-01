@@ -17,6 +17,7 @@ from skypilot.agent.run_agent import (
 from skypilot.config import load_agent_config
 from skypilot.eval.scripted import ScriptedModel
 from skypilot.eval.scripted import code_reply as _code
+from skypilot.mcp_server.server import parse_state
 
 # ---------------------------------------------------------------- configuration
 
@@ -76,7 +77,9 @@ def test_scripted_mission_flies_through_mcp() -> None:
     result = run_mission("fly to (2, 2, 1)", model, max_steps=6, verbosity=LogLevel.OFF).run
 
     assert result.state == "success"
-    assert result.output.startswith("landed at (2.00, 2.00, 0.01) m")
+    final = parse_state(str(result.output))  # physics differs by mm across platforms
+    assert not final.is_flying
+    assert final.position_m == pytest.approx((2.0, 2.0, 0.01), abs=0.05)
     assert count_action_steps(result) == 4
 
 
